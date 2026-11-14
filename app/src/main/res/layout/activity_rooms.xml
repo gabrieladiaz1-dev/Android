@@ -161,7 +161,8 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="@string/stat_total_beds"
+                    android:id="@+id/tvTotalBeds"
+                    android:text="@string/remote_placeholder"
                     android:textColor="@color/wine_primary"
                     android:textSize="26sp"
                     android:textStyle="bold" />
@@ -194,7 +195,8 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="@string/stat_available_beds"
+                    android:id="@+id/tvAvailableBeds"
+                    android:text="@string/remote_placeholder"
                     android:textColor="@color/wine_primary"
                     android:textSize="26sp"
                     android:textStyle="bold" />
@@ -216,7 +218,7 @@
                 android:layout_marginStart="20dp"
                 android:layout_marginTop="24dp"
                 android:layout_marginEnd="20dp"
-                android:text="@string/rooms_vip_title"
+                android:text="@string/remote_vip_title"
                 android:textColor="#202734"
                 android:textSize="16sp"
                 android:textStyle="bold"
@@ -246,7 +248,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginStart="12dp"
                     android:layout_marginTop="11dp"
-                    android:text="VIP-301"
+                    android:text="@string/remote_placeholder"
                     android:textColor="#202734"
                     android:textSize="12sp"
                     android:textStyle="bold"
@@ -260,11 +262,12 @@
                     android:layout_marginTop="6dp"
                     android:background="@drawable/bg_badge_triage"
                     android:gravity="center"
-                    android:text="@string/status_occupied"
+                    android:text="@string/remote_placeholder"
                     android:textColor="#202734"
                     android:textSize="10sp"
                     android:textStyle="bold"
                     app:layout_constraintStart_toStartOf="parent"
+                    android:id="@+id/tvRoomStatus1"
                     app:layout_constraintTop_toBottomOf="@id/tvRoom1" />
             </androidx.constraintlayout.widget.ConstraintLayout>
 
@@ -290,7 +293,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginStart="12dp"
                     android:layout_marginTop="11dp"
-                    android:text="VIP-302"
+                    android:text="@string/remote_placeholder"
                     android:textColor="#202734"
                     android:textSize="12sp"
                     android:textStyle="bold"
@@ -304,11 +307,12 @@
                     android:layout_marginTop="6dp"
                     android:background="@drawable/bg_badge_confirmed"
                     android:gravity="center"
-                    android:text="@string/status_available"
+                    android:text="@string/remote_placeholder"
                     android:textColor="#202734"
                     android:textSize="10sp"
                     android:textStyle="bold"
                     app:layout_constraintStart_toStartOf="parent"
+                    android:id="@+id/tvRoomStatus2"
                     app:layout_constraintTop_toBottomOf="@id/tvRoom2" />
             </androidx.constraintlayout.widget.ConstraintLayout>
 
@@ -334,7 +338,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginStart="12dp"
                     android:layout_marginTop="11dp"
-                    android:text="VIP-303"
+                    android:text="@string/remote_placeholder"
                     android:textColor="#202734"
                     android:textSize="12sp"
                     android:textStyle="bold"
@@ -348,11 +352,12 @@
                     android:layout_marginTop="6dp"
                     android:background="@drawable/bg_badge_triage"
                     android:gravity="center"
-                    android:text="@string/status_occupied"
+                    android:text="@string/remote_placeholder"
                     android:textColor="#202734"
                     android:textSize="10sp"
                     android:textStyle="bold"
                     app:layout_constraintStart_toStartOf="parent"
+                    android:id="@+id/tvRoomStatus3"
                     app:layout_constraintTop_toBottomOf="@id/tvRoom3" />
             </androidx.constraintlayout.widget.ConstraintLayout>
 
@@ -378,7 +383,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginStart="12dp"
                     android:layout_marginTop="11dp"
-                    android:text="VIP-304"
+                    android:text="@string/remote_placeholder"
                     android:textColor="#202734"
                     android:textSize="12sp"
                     android:textStyle="bold"
@@ -392,11 +397,12 @@
                     android:layout_marginTop="6dp"
                     android:background="@drawable/bg_badge_triage"
                     android:gravity="center"
-                    android:text="@string/status_occupied"
+                    android:text="@string/remote_placeholder"
                     android:textColor="#202734"
                     android:textSize="10sp"
                     android:textStyle="bold"
                     app:layout_constraintStart_toStartOf="parent"
+                    android:id="@+id/tvRoomStatus4"
                     app:layout_constraintTop_toBottomOf="@id/tvRoom4" />
             </androidx.constraintlayout.widget.ConstraintLayout>
 
@@ -422,7 +428,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginStart="12dp"
                     android:layout_marginTop="11dp"
-                    android:text="VIP-305"
+                    android:text="@string/remote_placeholder"
                     android:textColor="#202734"
                     android:textSize="12sp"
                     android:textStyle="bold"
@@ -436,11 +442,12 @@
                     android:layout_marginTop="6dp"
                     android:background="@drawable/bg_badge_confirmed"
                     android:gravity="center"
-                    android:text="@string/status_available"
+                    android:text="@string/remote_placeholder"
                     android:textColor="#202734"
                     android:textSize="10sp"
                     android:textStyle="bold"
                     app:layout_constraintStart_toStartOf="parent"
+                    android:id="@+id/tvRoomStatus5"
                     app:layout_constraintTop_toBottomOf="@id/tvRoom5" />
             </androidx.constraintlayout.widget.ConstraintLayout>
 
@@ -465,7 +472,7 @@
                 android:layout_marginStart="20dp"
                 android:layout_marginTop="22dp"
                 android:layout_marginEnd="20dp"
-                android:text="@string/rooms_semi_title"
+                android:text="@string/remote_semi_title"
                 android:textColor="#202734"
                 android:textSize="15sp"
                 android:textStyle="bold"
@@ -481,7 +488,7 @@
                 android:layout_marginStart="20dp"
                 android:layout_marginTop="6dp"
                 android:layout_marginEnd="20dp"
-                android:text="@string/rooms_semi_meta"
+                android:text="@string/remote_loading"
                 android:textColor="#737B89"
                 android:textSize="12sp"
                 app:layout_constraintEnd_toEndOf="parent"

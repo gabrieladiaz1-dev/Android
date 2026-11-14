@@ -1,6 +1,20 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
 }
+
+val supabaseLocal = Properties().apply {
+    val configFile = rootProject.file("supabase.properties")
+    if (configFile.exists()) configFile.inputStream().use { load(it) }
+}
+fun configLiteral(value: String): String =
+    "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "").replace("\r", "") + "\""
+
+val supabaseUrl = supabaseLocal.getProperty("SUPABASE_URL", "https://uvebpsbbwofthucghccc.supabase.co").trim()
+val supabaseKey = supabaseLocal.getProperty("SUPABASE_PUBLISHABLE_KEY", "").trim()
+require(supabaseUrl == "https://uvebpsbbwofthucghccc.supabase.co") { "Unexpected Supabase project URL" }
+require(supabaseKey.isEmpty() || supabaseKey.startsWith("sb_publishable_")) { "Use only a Supabase Publishable Key" }
 
 android {
     namespace = "sv.edu.catolica.hospital_universitario"
@@ -12,6 +26,8 @@ android {
         targetSdk = 37
         versionCode = 1
         versionName = "1.0"
+        buildConfigField("String", "SUPABASE_URL", configLiteral(supabaseUrl))
+        buildConfigField("String", "SUPABASE_PUBLISHABLE_KEY", configLiteral(supabaseKey))
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -31,6 +47,7 @@ android {
     }
     buildFeatures {
         viewBinding = true
+        buildConfig = true
         compose = false
     }
 }

@@ -5,6 +5,9 @@ package sv.edu.catolica.hospital_universitario
  * Cuando se conecte la base de datos, se crea otra implementación y se cambia en AppContainer.
  */
 interface EntryRepository {
+    /** Recarga desde el servidor; ejecutar fuera del hilo principal. */
+    fun refresh() {}
+    fun clear() {}
     fun getAll(): List<Entry>
     fun getById(id: Long): Entry?
     /** Busca en el título (con hora/código) y en la línea secundaria, sin importar mayúsculas ni tildes. */

@@ -22,7 +22,12 @@ data class Entry(
     val lead: String = "",
     val title: String,
     val meta: String = "",
-    val status: StatusOption
+    val status: StatusOption,
+    val remoteId: String = "",
+    val patientId: String? = null,
+    val stateCode: String = "",
+    val roomKind: String = "",
+    val queueNumber: Int? = null
 ) {
     val displayTitle: String get() = if (lead.isBlank()) title else "$lead · $title"
 }

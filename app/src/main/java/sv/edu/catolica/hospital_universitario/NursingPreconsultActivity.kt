@@ -66,6 +66,7 @@ class NursingPreconsultActivity : AppCompatActivity() {
         binding.cardSearch.setOnClickListener {
             PatientPicker.show(this) { patient ->
                 AppContainer.selectedPatientName = patient.fullName
+                AppContainer.selectedPatientId = patient.id
                 showSelectedPatient()
             }
         }
@@ -111,10 +112,11 @@ class NursingPreconsultActivity : AppCompatActivity() {
     private fun showSelectedPatient() {
         val name = AppContainer.selectedPatientName
         if (name != null) {
-            val patient = AppContainer.patientRepository.getAll().firstOrNull { it.fullName == name }
+            val patient = AppContainer.selectedPatientId?.let { AppContainer.patientRepository.getById(it) }
             if (patient != null) {
                 binding.tvPatientName.text = getString(R.string.patient_card_name, patient.fullName, patient.record)
-                binding.tvPatientMeta.text = getString(R.string.patient_card_meta, patient.age)
+                binding.tvPatientMeta.text = patient.age?.let { getString(R.string.patient_card_meta, it) }
+                    ?: getString(R.string.patient_unknown_age)
             } else {
                 binding.tvPatientName.text = name
                 binding.tvPatientMeta.text = ""

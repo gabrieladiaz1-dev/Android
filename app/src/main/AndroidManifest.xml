@@ -2,6 +2,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <uses-permission android:name="android.permission.INTERNET" />
+
     <application
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
@@ -23,6 +25,12 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <activity android:name=".ReceptionHubActivity" android:exported="false" android:theme="@style/Theme.Hospital_Universitario" android:windowSoftInputMode="adjustResize" />
+        <activity android:name=".ReceptionRequestsActivity" android:exported="false" android:theme="@style/Theme.Hospital_Universitario" android:windowSoftInputMode="adjustResize" />
+        <activity android:name=".ReceptionPatientsActivity" android:exported="false" android:theme="@style/Theme.Hospital_Universitario" android:windowSoftInputMode="adjustResize" />
+        <activity android:name=".ReceptionAgendaActivity" android:exported="false" android:theme="@style/Theme.Hospital_Universitario" android:windowSoftInputMode="adjustResize" />
+        <activity android:name=".ReceptionHospitalActivity" android:exported="false" android:theme="@style/Theme.Hospital_Universitario" android:windowSoftInputMode="adjustResize" />
+        <activity android:name=".ReceptionWalkinActivity" android:exported="false" android:theme="@style/Theme.Hospital_Universitario" android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".HomeActivity"
             android:exported="false"
@@ -111,6 +119,17 @@
             android:name=".DoctorScheduleActivity"
             android:exported="false"
             android:theme="@style/Theme.Hospital_Universitario" />
+        <activity android:name=".DoctorNativeHomeActivity" android:exported="false" android:windowSoftInputMode="adjustResize" />
+        <activity android:name=".DoctorNativeAgendaActivity" android:exported="false" android:windowSoftInputMode="adjustResize" />
+        <activity android:name=".DoctorNativePatientsActivity" android:exported="false" android:windowSoftInputMode="adjustResize" />
+        <activity android:name=".DoctorNativeChartActivity" android:exported="false" android:windowSoftInputMode="adjustResize" />
+        <activity android:name=".DoctorNativeTicketActivity" android:exported="false" android:windowSoftInputMode="adjustResize" />
+        <activity android:name=".DoctorNativeConsultActivity" android:exported="false" android:windowSoftInputMode="adjustResize" />
+        <activity android:name=".DoctorNativeMoreActivity" android:exported="false" android:windowSoftInputMode="adjustResize" />
+        <activity android:name=".DoctorNativeLabsActivity" android:exported="false" android:windowSoftInputMode="adjustResize" />
+        <activity android:name=".DoctorNativePatientLabsActivity" android:exported="false" android:windowSoftInputMode="adjustResize" />
+        <activity android:name=".DoctorNativePrescriptionsActivity" android:exported="false" android:windowSoftInputMode="adjustResize" />
+        <activity android:name=".DoctorNativeAdmissionsActivity" android:exported="false" android:windowSoftInputMode="adjustResize" />
     </application>
 
 </manifest>

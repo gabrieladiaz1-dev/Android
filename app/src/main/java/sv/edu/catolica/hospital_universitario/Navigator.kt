@@ -63,25 +63,36 @@ object Navigator {
     }
 
     fun goToReceptionHome(activity: Activity, closeCurrent: Boolean = false) =
-        navigate(activity, HomeActivity::class.java, closeCurrent)
+        navigate(activity, ReceptionHubActivity::class.java, closeCurrent)
 
     fun goToPatients(activity: Activity, closeCurrent: Boolean = false) =
-        navigate(activity, PatientsActivity::class.java, closeCurrent)
+        navigate(activity, if (SessionManager.currentRole == SessionManager.Role.RECEPTION) ReceptionPatientsActivity::class.java else PatientsActivity::class.java, closeCurrent)
 
     fun goToAppointments(activity: Activity, closeCurrent: Boolean = false) =
-        navigate(activity, AppointmentsActivity::class.java, closeCurrent)
+        navigate(activity, if (SessionManager.currentRole == SessionManager.Role.RECEPTION) ReceptionAgendaActivity::class.java else AppointmentsActivity::class.java, closeCurrent)
 
     fun goToTurns(activity: Activity, closeCurrent: Boolean = false) =
-        navigate(activity, TurnsActivity::class.java, closeCurrent)
+        navigate(activity, if (SessionManager.currentRole == SessionManager.Role.RECEPTION) ReceptionRequestsActivity::class.java else TurnsActivity::class.java, closeCurrent)
 
     fun goToAdmissions(activity: Activity, closeCurrent: Boolean = false) =
-        navigate(activity, AdmissionsActivity::class.java, closeCurrent)
+        navigate(activity, if (SessionManager.currentRole == SessionManager.Role.RECEPTION) ReceptionHospitalActivity::class.java else AdmissionsActivity::class.java, closeCurrent)
 
     fun goToRooms(activity: Activity, closeCurrent: Boolean = false) =
-        navigate(activity, RoomsActivity::class.java, closeCurrent)
+        navigate(activity, if (SessionManager.currentRole == SessionManager.Role.RECEPTION) ReceptionHospitalActivity::class.java else RoomsActivity::class.java, closeCurrent)
 
     fun goToReceptionMore(activity: Activity, closeCurrent: Boolean = false) =
-        navigate(activity, ReceptionMoreActivity::class.java, closeCurrent)
+        navigate(activity, if (SessionManager.currentRole == SessionManager.Role.RECEPTION) ReceptionHubActivity::class.java else ReceptionMoreActivity::class.java, closeCurrent)
+
+    fun goToReceptionRequests(activity: Activity, closeCurrent: Boolean = false) =
+        navigate(activity, ReceptionRequestsActivity::class.java, closeCurrent)
+
+    fun goToReceptionWalkin(activity: Activity, closeCurrent: Boolean = false) =
+        navigate(activity, ReceptionWalkinActivity::class.java, closeCurrent)
+
+    fun goToReceptionHospitalDetail(activity: Activity, admissionId: String) {
+        activity.startActivity(Intent(activity, ReceptionHospitalActivity::class.java)
+            .putExtra("admission_id", admissionId))
+    }
 
     // ---------------------------------------------------------------------
     // Enfermería
@@ -113,28 +124,33 @@ object Navigator {
     // ---------------------------------------------------------------------
 
     fun goToDoctorHome(activity: Activity, closeCurrent: Boolean = false) =
-        navigate(activity, DoctorHomeActivity::class.java, closeCurrent)
+        navigate(activity, DoctorNativeHomeActivity::class.java, closeCurrent)
 
     fun goToDoctorAppointments(activity: Activity, closeCurrent: Boolean = false) =
-        navigate(activity, DoctorAppointmentsActivity::class.java, closeCurrent)
+        navigate(activity, DoctorNativeAgendaActivity::class.java, closeCurrent)
 
     fun goToDoctorConsult(activity: Activity, closeCurrent: Boolean = false) =
-        navigate(activity, DoctorConsultActivity::class.java, closeCurrent)
+        navigate(activity, DoctorNativeConsultActivity::class.java, closeCurrent)
 
     fun goToDoctorRecords(activity: Activity, closeCurrent: Boolean = false) =
-        navigate(activity, DoctorRecordsActivity::class.java, closeCurrent)
+        navigate(activity, DoctorNativePatientsActivity::class.java, closeCurrent)
 
     fun goToDoctorMore(activity: Activity, closeCurrent: Boolean = false) =
-        navigate(activity, DoctorMoreActivity::class.java, closeCurrent)
+        navigate(activity, DoctorNativeMoreActivity::class.java, closeCurrent)
 
     fun goToDoctorLab(activity: Activity, closeCurrent: Boolean = false) =
-        navigate(activity, DoctorLabActivity::class.java, closeCurrent)
+        navigate(activity, DoctorNativeLabsActivity::class.java, closeCurrent)
 
     fun goToDoctorPrescriptions(activity: Activity, closeCurrent: Boolean = false) =
-        navigate(activity, DoctorPrescriptionsActivity::class.java, closeCurrent)
+        navigate(activity, DoctorNativePrescriptionsActivity::class.java, closeCurrent)
+
+    fun goToDoctorChart(activity: Activity) = navigate(activity, DoctorNativeChartActivity::class.java, false)
+    fun goToDoctorTicket(activity: Activity) = navigate(activity, DoctorNativeTicketActivity::class.java, false)
+    fun goToDoctorAdmissions(activity: Activity) = navigate(activity, DoctorNativeAdmissionsActivity::class.java, false)
+    fun goToDoctorPatientLabs(activity: Activity) = navigate(activity, DoctorNativePatientLabsActivity::class.java, false)
 
     fun goToDoctorSchedule(activity: Activity, closeCurrent: Boolean = false) =
-        navigate(activity, DoctorScheduleActivity::class.java, closeCurrent)
+        navigate(activity, DoctorNativeAgendaActivity::class.java, closeCurrent)
 
     // ---------------------------------------------------------------------
     // Barra inferior del rol Recepción
@@ -260,6 +276,7 @@ object Navigator {
             .setMessage(R.string.dialog_logout_message)
             .setNegativeButton(R.string.dialog_logout_cancel, null)
             .setPositiveButton(R.string.dialog_logout_confirm) { _, _ ->
+                AppContainer.doctorNativeContext.clear()
                 SessionManager.logout()
                 val intent = Intent(activity, MainActivity::class.java).apply {
                     flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK

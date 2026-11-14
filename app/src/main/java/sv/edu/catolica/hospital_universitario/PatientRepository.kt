@@ -6,10 +6,13 @@ package sv.edu.catolica.hospital_universitario
  */
 interface PatientRepository {
     fun getAll(): List<Patient>
-    fun getById(id: Long): Patient?
+    fun getById(id: String): Patient?
     /** Busca por nombre o número de expediente, sin distinguir mayúsculas ni tildes. */
     fun search(query: String): List<Patient>
     fun add(patient: Patient): Patient
     fun update(patient: Patient): Boolean
-    fun delete(id: Long): Boolean
+    fun delete(id: String): Boolean
+    /** Actualiza la copia local desde la red; invocar fuera del hilo principal. */
+    fun refresh() {}
+    fun clear() {}
 }

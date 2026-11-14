@@ -48,7 +48,9 @@ data class ListScreenConfig(
     @StringRes val metaHint: Int? = null,
     val suggestPatients: Boolean = false,
     @StringRes val saveConfirmMessage: Int? = null,
-    val extraAction: ExtraAction? = null
+    val extraAction: ExtraAction? = null,
+    val onCreateRemote: (((() -> Unit)) -> Unit)? = null,
+    val onOpenRemote: ((Entry, () -> Unit) -> Unit)? = null
 )
 
 /**
@@ -94,17 +96,39 @@ class ListScreen(
         val newButton = views.newButton
         if (newButton != null) {
             if (config.canAdd) {
-                newButton.setOnClickListener { showForm(null) }
+                newButton.setOnClickListener {
+                    val remote = config.onCreateRemote
+                    if (remote != null) remote { refresh() } else showForm(null)
+                }
             } else {
                 newButton.visibility = View.GONE
             }
         }
 
         setupSearch()
-        load()
+        refresh()
     }
 
     // ------------------------------------------------------------------ lista
+
+    private fun refresh() {
+        views.empty.setText(R.string.remote_loading)
+        views.empty.visibility = View.VISIBLE
+        val user = SessionManager.currentUser
+        AppContainer.ioExecutor.execute {
+            val result = runCatching { repository.refresh() }
+            activity.runOnUiThread {
+                if (activity.isDestroyed || activity.isFinishing || SessionManager.currentUser !== user) return@runOnUiThread
+                result.fold(onSuccess = { load() }, onFailure = { error ->
+                    adapter.submitList(emptyList())
+                    views.empty.setText((error as? AuthException)?.messageRes ?: R.string.remote_operation_error)
+                    views.empty.visibility = View.VISIBLE
+                    Snackbar.make(views.root, R.string.remote_operation_error, Snackbar.LENGTH_INDEFINITE)
+                        .setAction(R.string.remote_retry) { refresh() }.show()
+                })
+            }
+        }
+    }
 
     private fun load() {
         val items = repository.search(query)
@@ -163,6 +187,11 @@ class ListScreen(
     // ---------------------------------------------------------------- acciones
 
     private fun onEntryClick(entry: Entry) {
+        val remote = config.onOpenRemote
+        if (remote != null) {
+            remote(entry) { refresh() }
+            return
+        }
         if (config.editMode == EditMode.NONE && config.extraAction == null) {
             showInfo(entry)
             return

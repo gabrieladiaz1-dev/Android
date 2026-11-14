@@ -32,7 +32,9 @@ class EntryAdapter(
         with(holder.binding) {
             tvIcon.text = entry.icon
             flIcon.visibility = if (entry.icon.isBlank()) View.GONE else View.VISIBLE
-            tvTitle.text = entry.displayTitle
+            tvTitle.text = entry.queueNumber?.let {
+                context.getString(R.string.remote_queue_title, it, entry.displayTitle)
+            } ?: entry.displayTitle
             tvMeta.text = entry.meta
             tvMeta.visibility = if (entry.meta.isBlank()) View.GONE else View.VISIBLE
             tvBadge.text = context.getString(entry.status.labelRes)
@@ -58,7 +60,9 @@ class ShiftAdapter(
         val entry = getItem(position)
         val context = holder.itemView.context
         with(holder.binding) {
-            tvTitle.text = entry.displayTitle
+            tvTitle.text = entry.queueNumber?.let {
+                context.getString(R.string.remote_queue_title, it, entry.displayTitle)
+            } ?: entry.displayTitle
             tvMeta.text = entry.meta
             tvBadge.text = context.getString(entry.status.labelRes)
             tvBadge.setBackgroundResource(entry.status.style.badgeRes)

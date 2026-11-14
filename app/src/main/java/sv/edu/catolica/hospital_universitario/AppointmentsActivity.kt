@@ -17,7 +17,7 @@ class AppointmentsActivity : AppCompatActivity() {
         ListScreen(
             activity = this,
             repository = AppContainer.appointmentRepository,
-            config = ListConfigs.appointments(),
+            config = ListConfigs.appointments(this),
             views = ListScreen.Views(
                 recycler = binding.rvList,
                 empty = binding.tvEmpty,

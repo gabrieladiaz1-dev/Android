@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent"
+ android:layout_height="wrap_content" android:layout_marginBottom="10dp" android:padding="16dp"
+ android:gravity="top" android:background="@drawable/bg_dashboard_card">
+ <LinearLayout android:layout_width="64dp" android:layout_height="wrap_content" android:orientation="vertical">
+  <TextView android:id="@+id/start" android:layout_width="match_parent" android:layout_height="wrap_content"
+  android:textSize="19sp" android:textStyle="bold" android:textColor="@color/wine_primary"/>
+  <TextView android:id="@+id/end" android:layout_width="match_parent" android:layout_height="wrap_content"
+  android:textSize="12sp" android:layout_marginTop="4dp" android:textColor="@color/text_secondary"/>
+ </LinearLayout>
+ <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
+ android:layout_marginStart="14dp" android:orientation="vertical">
+  <TextView android:id="@+id/patient" android:layout_width="match_parent" android:layout_height="wrap_content"
+  android:textSize="16sp" android:textStyle="bold" android:textColor="@color/text_primary"/>
+  <TextView android:id="@+id/doctor" android:layout_width="match_parent" android:layout_height="wrap_content"
+  android:layout_marginTop="5dp" android:textSize="13sp" android:textColor="@color/text_secondary"/>
+  <TextView android:id="@+id/room" android:layout_width="match_parent" android:layout_height="wrap_content"
+  android:layout_marginTop="5dp" android:textSize="12sp" android:textColor="@color/text_secondary"/>
+  <TextView android:id="@+id/badge" android:layout_width="wrap_content" android:layout_height="wrap_content"
+  android:layout_marginTop="10dp" android:background="@drawable/bg_pill_pink" android:padding="6dp"
+  android:textSize="11sp" android:textColor="@color/wine_primary"/>
+ </LinearLayout>
+</LinearLayout>

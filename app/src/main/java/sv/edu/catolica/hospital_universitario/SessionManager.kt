@@ -1,86 +1,66 @@
 package sv.edu.catolica.hospital_universitario
 
-/**
- * Sesión en memoria.
- *
- * Guarda el rol y el nombre del usuario que inició sesión. Todavía no hay
- * autenticación real ni persistencia: al cerrar la app la sesión se pierde.
- */
+import java.util.concurrent.Executors
+
+/** Sesión real en memoria. Se requiere iniciar sesión al reiniciar el proceso. */
 object SessionManager {
+    enum class Role { RECEPTION, NURSING, DOCTOR }
 
-    /** Roles de la aplicación. */
-    enum class Role {
-        RECEPTION,
-        NURSING,
-        DOCTOR
-    }
+    data class User(val role: Role, val displayName: String, val email: String)
 
-    /** Usuario de prueba. */
-    data class DemoUser(
-        val role: Role,
-        val displayName: String,
-        val email: String,
-        val password: String
-    )
-
-    private const val DEMO_PASSWORD = "demo123"
-
-    // Usuarios de prueba: solo para demo, reemplazar por autenticación real.
-    private val demoUsers = listOf(
-        DemoUser(
-            role = Role.RECEPTION,
-            displayName = "Ana Martínez",
-            email = "ana.martinez@hospital.edu",
-            password = DEMO_PASSWORD
-        ),
-        DemoUser(
-            role = Role.NURSING,
-            displayName = "Laura Gómez",
-            email = "laura.gomez@hospital.edu",
-            password = DEMO_PASSWORD
-        ),
-        DemoUser(
-            role = Role.DOCTOR,
-            displayName = "Dr. Carlos Ramírez",
-            email = "carlos.ramirez@hospital.edu",
-            password = DEMO_PASSWORD
-        )
-    )
-
-    /** Usuario con la sesión activa, o `null` si no hay sesión. */
-    var currentUser: DemoUser? = null
+    @Volatile var currentUser: User? = null
         private set
 
-    /** Rol de la sesión activa, o `null` si no hay sesión. */
-    val currentRole: Role?
-        get() = currentUser?.role
+    @Volatile private var session: AuthSession? = null
 
-    /** Nombre del usuario con la sesión activa, o `null` si no hay sesión. */
-    val currentUserName: String?
-        get() = currentUser?.displayName
+    /** Bloquea solo el trabajador que solicita datos; nunca invocar desde el hilo principal. */
+    private val refreshLock = Any()
 
-    /**
-     * Valida las credenciales contra los usuarios de prueba.
-     *
-     * @return el usuario si coinciden correo y contraseña; `null` en caso contrario.
-     */
-    fun login(email: String, password: String): DemoUser? {
-        val user = demoUsers.firstOrNull { demo ->
-            demo.email.equals(email.trim(), ignoreCase = true) && demo.password == password
+    fun requireAccessToken(): String = synchronized(refreshLock) {
+        val current = session ?: throw AuthException(R.string.auth_access_denied)
+        if (current.expiresAt > System.currentTimeMillis() / 1000 + 60) return@synchronized current.accessToken
+        check(android.os.Looper.myLooper() != android.os.Looper.getMainLooper()) {
+            "Session refresh must run off the main thread"
         }
-        currentUser = user
-        return user
+        val renewed = AppContainer.authRepository.refresh(current)
+        synchronized(this) {
+            if (session !== current) {
+                signOutExecutor.execute { runCatching { AppContainer.authRepository.signOut(renewed.accessToken) } }
+                throw AuthException(R.string.auth_access_denied)
+            }
+            session = renewed
+        }
+        renewed.accessToken
+    }
+    private val signOutExecutor = Executors.newSingleThreadExecutor()
+
+    val currentRole: Role? get() = currentUser?.role
+    val currentUserName: String? get() = currentUser?.displayName
+
+    @Synchronized
+    fun start(authSession: AuthSession, role: Role) {
+        require(role in authSession.roles)
+        AppContainer.patientRepository.clear()
+        AppContainer.appointmentRepository.clear()
+        AppContainer.admissionRepository.clear()
+        AppContainer.turnRepository.clear()
+        AppContainer.selectedPatientName = null
+        session = authSession
+        currentUser = User(role, authSession.displayName, authSession.email)
     }
 
-    /** Atajo de demo: inicia sesión con el usuario de prueba del [role] pedido. */
-    fun loginAsDemo(role: Role): DemoUser? {
-        val user = demoUsers.firstOrNull { it.role == role }
-        currentUser = user
-        return user
-    }
-
-    /** Limpia la sesión actual. */
+    @Synchronized
     fun logout() {
+        val previous = session
+        session = null
         currentUser = null
+        AppContainer.patientRepository.clear()
+        AppContainer.appointmentRepository.clear()
+        AppContainer.admissionRepository.clear()
+        AppContainer.turnRepository.clear()
+        AppContainer.selectedPatientName = null
+        if (previous != null) signOutExecutor.execute {
+            runCatching { AppContainer.authRepository.signOut(previous.accessToken) }
+        }
     }
 }

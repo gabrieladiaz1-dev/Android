@@ -17,7 +17,7 @@ class TurnsActivity : AppCompatActivity() {
         ListScreen(
             activity = this,
             repository = AppContainer.turnRepository,
-            config = ListConfigs.turns(),
+            config = ListConfigs.turns(this),
             views = ListScreen.Views(
                 recycler = binding.rvList,
                 empty = binding.tvEmpty,

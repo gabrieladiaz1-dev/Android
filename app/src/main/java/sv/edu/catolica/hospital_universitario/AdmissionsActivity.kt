@@ -17,7 +17,7 @@ class AdmissionsActivity : AppCompatActivity() {
         ListScreen(
             activity = this,
             repository = AppContainer.admissionRepository,
-            config = ListConfigs.admissions(),
+            config = ListConfigs.admissions(this),
             views = ListScreen.Views(
                 recycler = binding.rvList,
                 empty = binding.tvEmpty,

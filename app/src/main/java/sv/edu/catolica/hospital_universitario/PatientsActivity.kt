@@ -6,10 +6,10 @@ import android.view.View
 import android.view.WindowManager
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
-import android.widget.ArrayAdapter
 import android.widget.EditText
 import android.widget.LinearLayout
-import android.widget.Spinner
+import java.time.LocalDate
+import java.time.Period
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.widget.addTextChangedListener
@@ -37,7 +37,24 @@ class PatientsActivity : AppCompatActivity() {
 
         setupList()
         setupListeners()
-        loadPatients()
+        refreshPatients()
+    }
+
+    private fun refreshPatients() {
+        binding.tvEmpty.setText(R.string.patient_loading)
+        binding.tvEmpty.visibility = View.VISIBLE
+        AppContainer.ioExecutor.execute {
+            val result = runCatching { repository.refresh() }
+            runOnUiThread {
+                if (isDestroyed || isFinishing) return@runOnUiThread
+                loadPatients()
+                result.exceptionOrNull()?.let {
+                    binding.tvEmpty.setText((it as? AuthException)?.messageRes ?: R.string.auth_server_error)
+                    binding.tvEmpty.visibility = View.VISIBLE
+                    showMessage((it as? AuthException)?.messageRes ?: R.string.auth_server_error)
+                }
+            }
+        }
     }
 
     private fun setupList() {
@@ -64,6 +81,7 @@ class PatientsActivity : AppCompatActivity() {
 
     private fun setupListeners() {
         setupSearch()
+        binding.btnNewPatient.isEnabled = SessionManager.currentRole == SessionManager.Role.RECEPTION
         binding.btnNewPatient.setOnClickListener { showPatientForm(null) }
 
         // Bottom Navigation (Recepción)
@@ -124,18 +142,17 @@ class PatientsActivity : AppCompatActivity() {
 
     private fun showPatientDetail(patient: Patient) {
         val message = getString(
-            R.string.patients_detail_message,
+            R.string.patient_remote_detail,
             patient.fullName,
             patient.record,
             getString(patient.status.labelRes),
-            patient.age,
+            patient.age?.let { getString(R.string.patient_age_value, it) } ?: getString(R.string.patient_unknown_age),
             patient.phone
         )
         MaterialAlertDialogBuilder(this)
             .setTitle(R.string.patients_detail_title)
             .setMessage(message)
             .setPositiveButton(R.string.patients_detail_edit) { _, _ -> showPatientForm(patient) }
-            .setNeutralButton(R.string.patients_detail_delete) { _, _ -> confirmDelete(patient) }
             .setNegativeButton(R.string.patients_detail_close, null)
             .show()
     }
@@ -144,38 +161,47 @@ class PatientsActivity : AppCompatActivity() {
 
     /** [existing] == null: crear paciente nuevo. Si no, editar ese paciente. */
     private fun showPatientForm(existing: Patient?) {
-        val etName = EditText(this).apply {
-            hint = getString(R.string.patients_form_name_hint)
-            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_WORDS
-            setText(existing?.fullName.orEmpty())
+        if (SessionManager.currentRole != SessionManager.Role.RECEPTION) {
+            showMessage(R.string.patient_write_denied)
+            return
         }
-        val etAge = EditText(this).apply {
-            hint = getString(R.string.patients_form_age_hint)
-            inputType = InputType.TYPE_CLASS_NUMBER
-            setText(existing?.age?.toString().orEmpty())
+        val etName = EditText(this).apply {
+            hint = getString(R.string.patient_first_name)
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_WORDS
+            setText(existing?.firstName.orEmpty())
+        }
+        val etLastName = EditText(this).apply {
+            hint = getString(R.string.patient_last_name)
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_WORDS
+            setText(existing?.lastName.orEmpty())
+        }
+        val etBirth = EditText(this).apply {
+            hint = getString(R.string.patient_birth_date)
+            inputType = InputType.TYPE_CLASS_DATETIME or InputType.TYPE_DATETIME_VARIATION_DATE
+            setText(existing?.birthDate.orEmpty())
+        }
+        val etDui = EditText(this).apply {
+            hint = getString(R.string.patient_dui)
+            setText(existing?.dui.orEmpty())
+        }
+        val etCity = EditText(this).apply {
+            hint = getString(R.string.patient_city)
+            setText(existing?.city.orEmpty())
         }
         val etPhone = EditText(this).apply {
             hint = getString(R.string.patients_form_phone_hint)
             inputType = InputType.TYPE_CLASS_PHONE
             setText(existing?.phone.orEmpty())
         }
-        val statusLabels = PatientStatus.entries.map { getString(it.labelRes) }
-        val spStatus = Spinner(this).apply {
-            adapter = ArrayAdapter(
-                this@PatientsActivity,
-                android.R.layout.simple_spinner_dropdown_item,
-                statusLabels
-            )
-            setSelection((existing?.status ?: PatientStatus.ACTIVE).ordinal)
-        }
-
         val container = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(20), dp(8), dp(20), 0)
             addView(etName)
-            addView(etAge)
+            addView(etLastName)
+            addView(etBirth)
             addView(etPhone)
-            addView(spStatus)
+            addView(etDui)
+            addView(etCity)
         }
 
         val dialog = MaterialAlertDialogBuilder(this)
@@ -191,57 +217,77 @@ class PatientsActivity : AppCompatActivity() {
         dialog.setOnShowListener {
             dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
                 val name = etName.text.toString().trim()
-                val age = etAge.text.toString().toIntOrNull()
+                val lastName = etLastName.text.toString().trim()
+                val birthText = etBirth.text.toString().trim()
+                val birth = if (birthText.isEmpty()) null else runCatching {
+                    LocalDate.parse(birthText)
+                }.getOrNull()
+                val dui = etDui.text.toString().trim().ifBlank { null }
+                val city = etCity.text.toString().trim().ifBlank { null }
                 val phoneDigits = etPhone.text.toString().filter { it.isDigit() }
 
                 var valid = true
-                if (name.length < 3) {
+                if (name.isBlank()) {
                     etName.error = getString(R.string.patients_error_name)
                     valid = false
                 }
-                if (age == null || age !in 0..120) {
-                    etAge.error = getString(R.string.patients_error_age)
+                if (lastName.isBlank()) {
+                    etLastName.error = getString(R.string.patients_error_name)
                     valid = false
                 }
-                if (phoneDigits.length != 8) {
+                if (birthText.isNotEmpty() && (birth == null || birth.isAfter(LocalDate.now()))) {
+                    etBirth.error = getString(R.string.patient_date_error)
+                    valid = false
+                }
+                if (dui != null && !Regex("^[0-9]{8}-[0-9]$").matches(dui)) {
+                    etDui.error = getString(R.string.patient_dui_error)
+                    valid = false
+                }
+                if (phoneDigits.isNotEmpty() && phoneDigits.length != 8) {
                     etPhone.error = getString(R.string.patients_error_phone)
                     valid = false
                 }
-                if (!valid || age == null) return@setOnClickListener
+                if (!valid) return@setOnClickListener
 
-                val phone = phoneDigits.substring(0, 4) + "-" + phoneDigits.substring(4)
-                val status = PatientStatus.entries[spStatus.selectedItemPosition]
-
-                if (existing == null) {
-                    repository.add(Patient(fullName = name, status = status, age = age, phone = phone))
-                    showMessage(R.string.patients_saved)
-                } else {
-                    repository.update(
-                        existing.copy(fullName = name, status = status, age = age, phone = phone)
-                    )
-                    showMessage(R.string.patients_updated)
+                val phone = if (phoneDigits.isEmpty()) "" else
+                    phoneDigits.substring(0, 4) + "-" + phoneDigits.substring(4)
+                val patient = Patient(
+                    id = existing?.id.orEmpty(), fullName = "$name $lastName",
+                    record = existing?.record.orEmpty(),
+                    status = existing?.status ?: PatientStatus.UNSPECIFIED,
+                    age = birth?.let { Period.between(it, LocalDate.now()).years },
+                    phone = phone, firstName = name, lastName = lastName,
+                    birthDate = birth?.toString(), dui = dui, city = city
+                )
+                dialog.getButton(AlertDialog.BUTTON_POSITIVE).isEnabled = false
+                dialog.getButton(AlertDialog.BUTTON_NEGATIVE).isEnabled = false
+                dialog.setCancelable(false)
+                AppContainer.ioExecutor.execute {
+                    val result = runCatching {
+                        if (existing == null) repository.add(patient)
+                        else repository.update(patient)
+                    }
+                    runOnUiThread {
+                        if (isDestroyed || isFinishing) return@runOnUiThread
+                        result.fold(onSuccess = {
+                            dialog.dismiss()
+                            loadPatients()
+                            showMessage(if (existing == null) R.string.patients_saved else R.string.patients_updated)
+                            refreshPatients()
+                        }, onFailure = { error ->
+                            dialog.getButton(AlertDialog.BUTTON_POSITIVE).isEnabled = true
+                            dialog.getButton(AlertDialog.BUTTON_NEGATIVE).isEnabled = true
+                            dialog.setCancelable(true)
+                            showMessage((error as? AuthException)?.messageRes ?: R.string.patient_save_error)
+                        })
+                    }
                 }
-                dialog.dismiss()
-                loadPatients()
             }
         }
         dialog.show()
     }
 
     // --------------------------------------------------------------- eliminar
-
-    private fun confirmDelete(patient: Patient) {
-        MaterialAlertDialogBuilder(this)
-            .setTitle(R.string.patients_delete_title)
-            .setMessage(getString(R.string.patients_delete_message, patient.fullName))
-            .setPositiveButton(R.string.patients_detail_delete) { _, _ ->
-                repository.delete(patient.id)
-                loadPatients()
-                showMessage(R.string.patients_deleted)
-            }
-            .setNegativeButton(R.string.patients_search_cancel, null)
-            .show()
-    }
 
     // ---------------------------------------------------------------- helpers
 

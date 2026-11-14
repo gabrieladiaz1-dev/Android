@@ -10,48 +10,24 @@ object ListConfigs {
         Statuses.EN_CURSO, Statuses.ATENDIDA, Statuses.CANCELADA
     )
 
-    fun appointments() = ListScreenConfig(
-        statusOptions = appointmentStatuses,
-        editMode = EditMode.FULL,
+    fun appointments(activity: androidx.appcompat.app.AppCompatActivity) = ListScreenConfig(
+        statusOptions = emptyList(),
+        editMode = EditMode.NONE,
         canAdd = true,
-        canDelete = true,
-        leadMode = LeadMode.TIME,
-        suggestPatients = true,
-        formTitleNew = R.string.cfg_apt_new,
-        formTitleEdit = R.string.cfg_apt_edit,
-        titleHint = R.string.list_hint_patient,
-        metaHint = R.string.cfg_apt_meta_hint
+        onCreateRemote = { refresh -> ReceptionActions.schedule(activity, refresh) },
+        onOpenRemote = { entry, refresh -> ReceptionActions.appointment(activity, entry, refresh) }
     )
 
-    fun admissions() = ListScreenConfig(
-        statusOptions = listOf(
-            Statuses.INGRESADO, Statuses.INGRESADA, Statuses.OBSERVACION,
-            Statuses.EN_TRIAGE, Statuses.ALTA
-        ),
-        editMode = EditMode.FULL,
-        canAdd = true,
-        canDelete = true,
-        suggestPatients = true,
-        formTitleNew = R.string.cfg_adm_new,
-        formTitleEdit = R.string.cfg_adm_edit,
-        titleHint = R.string.list_hint_patient,
-        metaHint = R.string.cfg_adm_meta_hint
+    fun admissions(activity: androidx.appcompat.app.AppCompatActivity) = ListScreenConfig(
+        statusOptions = emptyList(),
+        editMode = EditMode.NONE,
+        onOpenRemote = { entry, refresh -> ReceptionActions.admission(activity, entry, refresh) }
     )
 
-    fun turns() = ListScreenConfig(
-        statusOptions = listOf(
-            Statuses.EN_ESPERA, Statuses.LLAMADO, Statuses.EN_ATENCION, Statuses.ATENDIDO
-        ),
-        editMode = EditMode.FULL,
-        canAdd = true,
-        canDelete = true,
-        leadMode = LeadMode.CODE,
-        codePrefix = "A-",
-        suggestPatients = true,
-        formTitleNew = R.string.cfg_turn_new,
-        formTitleEdit = R.string.cfg_turn_edit,
-        titleHint = R.string.list_hint_patient,
-        metaHint = R.string.cfg_turn_meta_hint
+    fun turns(activity: androidx.appcompat.app.AppCompatActivity) = ListScreenConfig(
+        statusOptions = emptyList(),
+        editMode = EditMode.NONE,
+        onOpenRemote = { entry, refresh -> ReceptionActions.appointment(activity, entry, refresh) }
     )
 
     /** El doctor no crea citas: cambia su estado o inicia la consulta. */
