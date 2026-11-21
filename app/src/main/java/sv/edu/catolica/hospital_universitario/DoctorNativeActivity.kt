@@ -245,7 +245,8 @@ abstract class DoctorNativeActivity : AppCompatActivity() {
     })
     fun time(value: String): String = runCatching {
         OffsetDateTime.parse(value).atZoneSameInstant(ReceptionClock.zone)
-            .format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"))
+            .format(DateTimeFormatter.ofPattern("dd/MM/yyyy hh:mm a", java.util.Locale.US))
+            .lowercase(java.util.Locale.US)
     }.getOrDefault(value)
     fun required(input: EditText): String {
         val value=input.text.toString().trim()
@@ -290,7 +291,9 @@ abstract class DoctorNativeActivity : AppCompatActivity() {
     }
     fun appointmentCard(a:org.json.JSONObject,target:LinearLayout) {
         fun hour(v:String)=runCatching {
-            OffsetDateTime.parse(v).atZoneSameInstant(ReceptionClock.zone).format(DateTimeFormatter.ofPattern("HH:mm"))
+            OffsetDateTime.parse(v).atZoneSameInstant(ReceptionClock.zone)
+                .format(DateTimeFormatter.ofPattern("hh:mm a", java.util.Locale.US))
+                .lowercase(java.util.Locale.US)
         }.getOrDefault(v)
         val row=ItemReceptionAppointmentBinding.inflate(layoutInflater,target,false)
         row.start.text=hour(a.value("starts_at"));row.end.text=hour(a.value("ends_at"))
@@ -366,4 +369,3 @@ abstract class DoctorNativeActivity : AppCompatActivity() {
     }
     fun dp(v: Int) = (v*resources.displayMetrics.density).toInt()
 }
-

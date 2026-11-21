@@ -51,7 +51,9 @@ class DoctorNativeHomeActivity:DoctorNativeActivity() {
 }
 
 fun DoctorNativeActivity.appointment(a:JSONObject) {
-    val start=DoctorDates.start(a)?.atZoneSameInstant(ReceptionClock.zone)?.format(DateTimeFormatter.ofPattern("HH:mm")).orEmpty()
+    val start=DoctorDates.start(a)?.atZoneSameInstant(ReceptionClock.zone)
+        ?.format(DateTimeFormatter.ofPattern("hh:mm a",java.util.Locale.US))
+        ?.lowercase(java.util.Locale.US).orEmpty()
     recordCard(a.value("patient_name"),status(a.value("status")),
         listOf(getString(R.string.doc_record,a.value("record_number")),getString(R.string.doc_ticket_number,a.value("ticket_number")),a.value("room_code")).filter {it.isNotBlank()}.joinToString(" · "),start) {
         if(ctx.pending!=null || ctx.prescriptionLines.length()>0) {showError(DoctorFailure(R.string.doc_pending));return@recordCard}
@@ -104,7 +106,9 @@ class DoctorNativeTicketActivity:DoctorNativeActivity() {
         if(a==null) {note(getString(R.string.doc_patient_required));action(R.string.doc_agenda){Navigator.goToDoctorAppointments(this)};return}
         val body=card(a.value("patient_name"),getString(R.string.doc_record,a.value("record_number")))
         note(getString(R.string.doc_ticket_number,a.value("ticket_number")),body)
-        note(DoctorDates.start(a)?.atZoneSameInstant(ReceptionClock.zone)?.format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")).orEmpty(),body)
+        note(DoctorDates.start(a)?.atZoneSameInstant(ReceptionClock.zone)
+            ?.format(DateTimeFormatter.ofPattern("dd/MM/yyyy hh:mm a",java.util.Locale.US))
+            ?.lowercase(java.util.Locale.US).orEmpty(),body)
         note(status(a.value("status")),body)
         listOf(R.string.doc_reason to a.value("reason"),R.string.doc_symptoms to (a.optJSONArray("symptoms")?.let {arr->(0 until arr.length()).map {arr.optString(it)}.joinToString(", ")}.orEmpty()+" "+a.value("other_symptoms")),R.string.doc_specialty to a.value("specialty"),R.string.doc_contact to a.value("phone")).forEach {(label,value)->if(value.isNotBlank()) {note(getString(label),body);note(value,body)}}
         if(pendingAction {render()}) return

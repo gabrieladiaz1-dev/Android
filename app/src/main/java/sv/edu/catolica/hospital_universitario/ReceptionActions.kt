@@ -130,5 +130,7 @@ object ReceptionActions {
     }
 
     private fun time(value: String): String = OffsetDateTime.parse(value)
-        .atZoneSameInstant(ZoneId.of("America/El_Salvador")).format(DateTimeFormatter.ofPattern("HH:mm"))
+        .atZoneSameInstant(ZoneId.of("America/El_Salvador"))
+        .format(DateTimeFormatter.ofPattern("hh:mm a", java.util.Locale.US))
+        .lowercase(java.util.Locale.US)
 }

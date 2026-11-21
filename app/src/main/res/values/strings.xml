@@ -83,22 +83,22 @@
     <string name="appointments_date_title">Miércoles, 21 de octubre</string>
     <string name="appointments_date_nav">‹    Hoy    ›                    Todos  ▾</string>
 
-    <string name="apt_1_time_name">08:00 · María López</string>
+    <string name="apt_1_time_name">08:00 am · María López</string>
     <string name="apt_1_meta">Medicina interna · Dr. Ramírez</string>
     <string name="status_confirmed">Confirmada</string>
 
-    <string name="apt_2_time_name">09:30 · Carlos Mendoza</string>
+    <string name="apt_2_time_name">09:30 am · Carlos Mendoza</string>
     <string name="apt_2_meta">Cardiología · Dra. Castillo</string>
     <string name="status_waiting">En espera</string>
 
-    <string name="apt_3_time_name">11:00 · Lucía García</string>
+    <string name="apt_3_time_name">11:00 am · Lucía García</string>
     <string name="apt_3_meta">Pediatría · Dra. Torres</string>
 
-    <string name="apt_4_time_name">13:30 · Juan Pérez</string>
+    <string name="apt_4_time_name">01:30 pm · Juan Pérez</string>
     <string name="apt_4_meta">Consulta general · Dr. Méndez</string>
     <string name="status_inprogress">En curso</string>
 
-    <string name="apt_5_time_name">15:00 · Roberto Díaz</string>
+    <string name="apt_5_time_name">03:00 pm · Roberto Díaz</string>
     <string name="apt_5_meta">Medicina interna · Dr. Ramírez</string>
     <string name="status_pending">Pendiente</string>
 
@@ -118,12 +118,12 @@
     <string name="turns_active_title">Sala de espera · Turnos activos</string>
 
     <string name="turn_1_name">A-021 · María López</string>
-    <string name="turn_1_meta">Cardiología · 09:30</string>
+    <string name="turn_1_meta">Cardiología · 09:30 am</string>
     <string name="turn_2_name">A-022 · Juan Pérez</string>
-    <string name="turn_2_meta">Consulta general · 10:00</string>
+    <string name="turn_2_meta">Consulta general · 10:00 am</string>
     <string name="status_called">Llamado</string>
     <string name="turn_3_name">A-023 · Ana Herrera</string>
-    <string name="turn_3_meta">Medicina interna · 10:15</string>
+    <string name="turn_3_meta">Medicina interna · 10:15 am</string>
     <string name="msg_turn_details">Turno seleccionado:</string>
 
     <!-- Admissions Screen Strings -->
@@ -274,26 +274,26 @@
     <string name="nursing_search_turns_hint">Buscar turnos laborales...</string>
     <string name="nursing_next_guard_title">Mi próxima guardia</string>
     <string name="nursing_next_guard_date">Miércoles 21 de octubre</string>
-    <string name="nursing_next_guard_time">Mañana · 06:00 a 14:00</string>
+    <string name="nursing_next_guard_time">Mañana · 06:00 am a 02:00 pm</string>
     <string name="status_confirmed_shift">Confirmado</string>
 
     <string name="nursing_week_title">Semana laboral</string>
     <string name="day_1_name">Lunes 19</string>
-    <string name="day_1_time">06:00–14:00</string>
+    <string name="day_1_time">06:00 am–02:00 pm</string>
     <string name="shift_morning">Mañana</string>
 
     <string name="day_2_name">Martes 20</string>
-    <string name="day_2_time">06:00–14:00</string>
+    <string name="day_2_time">06:00 am–02:00 pm</string>
 
     <string name="day_3_name">Miércoles 21</string>
-    <string name="day_3_time">06:00–14:00</string>
+    <string name="day_3_time">06:00 am–02:00 pm</string>
 
     <string name="day_4_name">Jueves 22</string>
     <string name="day_4_desc">Descanso</string>
     <string name="shift_free">Libre</string>
 
     <string name="day_5_name">Viernes 23</string>
-    <string name="day_5_time">14:00–22:00</string>
+    <string name="day_5_time">02:00 pm–10:00 pm</string>
     <string name="shift_afternoon">Tarde</string>
 
     <string name="msg_shift_details">Detalle de turno:</string>
@@ -306,20 +306,20 @@
     <string name="nursing_indications_filters">Pendientes   ▾       Paciente: Todos   ▾</string>
 
     <string name="ind_1_name">Carlos Mendoza</string>
-    <string name="ind_1_meta">Control de presión · 10:00</string>
+    <string name="ind_1_meta">Control de presión · 10:00 am</string>
 
     <string name="ind_2_name">María López</string>
-    <string name="ind_2_meta">Verificar signos · 10:30</string>
+    <string name="ind_2_meta">Verificar signos · 10:30 am</string>
 
     <string name="ind_3_name">Roberto Díaz</string>
-    <string name="ind_3_meta">Glucemia capilar · 11:00</string>
+    <string name="ind_3_meta">Glucemia capilar · 11:00 am</string>
 
     <string name="ind_4_name">Lucía García</string>
-    <string name="ind_4_meta">Registrar signos · 12:00</string>
+    <string name="ind_4_meta">Registrar signos · 12:00 pm</string>
     <string name="status_completed">Completada</string>
 
     <string name="ind_5_name">Ana Herrera</string>
-    <string name="ind_5_meta">Vigilancia clínica · 13:00</string>
+    <string name="ind_5_meta">Vigilancia clínica · 01:00 pm</string>
 
     <string name="nursing_indications_footer">Solo ejecutar indicaciones registradas y autorizadas</string>
     <string name="msg_indication_details">Detalle de indicación:</string>
@@ -344,19 +344,19 @@
     <string name="doctor_appointments_date_title">Miércoles, 21 de octubre</string>
     <string name="doctor_appointments_date_nav">‹    Hoy    ›                    Todos  ▾</string>
 
-    <string name="doc_apt_1_time_name">08:00 · María López</string>
+    <string name="doc_apt_1_time_name">08:00 am · María López</string>
     <string name="doc_apt_1_meta">Medicina interna · Primera vez</string>
 
-    <string name="doc_apt_2_time_name">09:30 · Carlos Mendoza</string>
+    <string name="doc_apt_2_time_name">09:30 am · Carlos Mendoza</string>
     <string name="doc_apt_2_meta">Cardiología · Control</string>
 
-    <string name="doc_apt_3_time_name">11:00 · Lucía García</string>
+    <string name="doc_apt_3_time_name">11:00 am · Lucía García</string>
     <string name="doc_apt_3_meta">Pediatría · Seguimiento</string>
 
-    <string name="doc_apt_4_time_name">13:30 · Juan Pérez</string>
+    <string name="doc_apt_4_time_name">01:30 pm · Juan Pérez</string>
     <string name="doc_apt_4_meta">Consulta general · Urgencia menor</string>
 
-    <string name="doc_apt_5_time_name">15:00 · Roberto Díaz</string>
+    <string name="doc_apt_5_time_name">03:00 pm · Roberto Díaz</string>
     <string name="doc_apt_5_meta">Medicina interna · Control</string>
 
     <string name="msg_doctor_appointment_details">Detalle de cita médica:</string>
@@ -473,20 +473,20 @@
     <string name="doctor_search_schedule_hint">Buscar mi horario...</string>
     <string name="doctor_next_shift_title">Próxima jornada</string>
     <string name="doctor_next_shift_date">Miércoles 21 de octubre</string>
-    <string name="doctor_next_shift_time">Mañana · 07:00–15:00</string>
+    <string name="doctor_next_shift_time">Mañana · 07:00 am–03:00 pm</string>
     <string name="doctor_week_schedule_title">Agenda semanal</string>
 
     <string name="doc_sch_1_day">Lunes 19</string>
-    <string name="doc_sch_1_time">07:00–15:00</string>
+    <string name="doc_sch_1_time">07:00 am–03:00 pm</string>
 
     <string name="doc_sch_2_day">Martes 20</string>
-    <string name="doc_sch_2_time">07:00–15:00</string>
+    <string name="doc_sch_2_time">07:00 am–03:00 pm</string>
 
     <string name="doc_sch_3_day">Miércoles 21</string>
-    <string name="doc_sch_3_time">07:00–15:00</string>
+    <string name="doc_sch_3_time">07:00 am–03:00 pm</string>
 
     <string name="doc_sch_4_day">Jueves 22</string>
-    <string name="doc_sch_4_desc">Guardia 15:00–23:00</string>
+    <string name="doc_sch_4_desc">Guardia 03:00 pm–11:00 pm</string>
 
     <string name="doc_sch_5_day">Viernes 23</string>
     <string name="doc_sch_5_desc">Descanso</string>

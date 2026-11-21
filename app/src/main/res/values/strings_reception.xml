@@ -58,6 +58,7 @@
     <string name="desk_phone">Teléfono (0000-0000)</string>
     <string name="desk_email">Correo electrónico</string>
     <string name="desk_city">Ciudad</string>
+    <string name="desk_city_none">No especificada</string>
     <string name="desk_document">DUI *</string>
     <string name="desk_document_hint">Puedes escribir con o sin guion; la comprobación no borra ni bloquea el formulario.</string>
     <string name="desk_contact">Datos de contacto</string>
@@ -67,9 +68,11 @@
     <string name="desk_walkin_help">Completa los datos del paciente. No se crea una cuenta Auth ni una contraseña.</string>
     <string name="desk_invalid">Revisa este campo.</string>
     <string name="desk_birth_invalid">Usa una fecha válida, no futura y dentro de los últimos 120 años.</string>
+    <string name="desk_phone_error">Escribe el teléfono con el formato 0000-0000 (8 dígitos).</string>
     <string name="desk_existing">Ya existe un paciente con este DUI. Recupera su expediente; no se sobrescribirá su identidad.</string>
     <string name="desk_checking">Comprobando el DUI en segundo plano…</string>
     <string name="desk_lookup_failed">No se pudo comprobar el DUI. Se volverá a consultar al guardar.</string>
+    <string name="desk_walkin_not_found">No hay un paciente con este DUI. Puedes crear el expediente.</string>
     <string name="desk_create_link">Crear y vincular expediente</string>
     <string name="desk_link">Vincular expediente verificado</string>
     <string name="desk_review_action">Continuar: verificar expediente</string>
@@ -194,7 +197,34 @@
     <string name="desk_date_caption">Hora de El Salvador</string>
     <string name="desk_identity_row">%1$s: %2$s</string>
     <string name="desk_patient_code">Código de paciente</string>
+    <!-- Etiquetas de datos (consulta), sin el texto de ayuda de los campos de formulario. -->
+    <string name="desk_data_dui">DUI</string>
+    <string name="desk_data_birth">Fecha de nacimiento</string>
+    <string name="desk_data_phone">Teléfono</string>
     <string name="desk_consulting_room">Consultorio %1$s</string>
     <string name="desk_old_short">Antiguas</string>
     <string name="desk_new_short">Recientes</string>
+    <!-- Bandeja de solicitudes y agenda: textos del maquetado del ADMIN. -->
+    <string name="desk_inbox_eyebrow">SOLICITUDES DE PACIENTES</string>
+    <string name="desk_inbox_title">Bandeja de solicitudes</string>
+    <string name="desk_inbox_help">Encuentra al paciente y abre su solicitud para continuar la atención.</string>
+    <plurals name="desk_visible_count">
+        <item quantity="one">solicitud en pantalla</item>
+        <item quantity="other">solicitudes en pantalla</item>
+    </plurals>
+    <string name="desk_request_eyebrow">SOLICITUD DE ATENCIÓN</string>
+    <string name="desk_name_missing">Nombre no registrado</string>
+    <string name="desk_request_filters">Filtros de búsqueda</string>
+    <string name="desk_request_results">Resultados de solicitudes</string>
+    <plurals name="desk_agenda_count">
+        <item quantity="one">%1$d cita</item>
+        <item quantity="other">%1$d citas</item>
+    </plurals>
+    <string name="desk_agenda_eyebrow">AGENDA DEL DÍA</string>
+    <string name="desk_received_at">Recibida el %1$s</string>
+    <string name="desk_patient_linked">Paciente vinculado</string>
+    <string name="desk_view_request">Ver solicitud</string>
+    <string name="desk_continue_attention">Continuar atención</string>
+    <string name="desk_data_reason">Motivo de atención</string>
+    <string name="desk_appointments">Citas programadas</string>
 </resources>

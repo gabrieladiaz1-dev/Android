@@ -4,8 +4,11 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.time.LocalDate
 import java.time.OffsetDateTime
+import java.time.format.DateTimeFormatter
 import java.util.UUID
+import android.widget.Button
 import android.widget.LinearLayout
+import android.widget.TextView
 
 /** Mismo filtrado y RPC que RequestDetail/WalkinCare del ADMIN. */
 class ReceptionScheduling(private val ui: ReceptionDeskActivity) {
@@ -33,25 +36,26 @@ class ReceptionScheduling(private val ui: ReceptionDeskActivity) {
         patientCard(patient,nullRecord())
         val form=card(getString(R.string.desk_schedule))
         if(request==null) {
+            // render() calificado: sin él, dentro de with(ui) resuelve al render() de la Activity contenedora.
             picker(R.string.desk_service,listOf("scheduled" to getString(R.string.desk_mode_scheduled),
-                "immediate" to getString(R.string.desk_mode_immediate)),mode,form) { mode=it;slots=emptyList();doctor="";key=UUID.randomUUID().toString();render() }
+                "immediate" to getString(R.string.desk_mode_immediate)),mode,form) { mode=it;slots=emptyList();doctor="";key=UUID.randomUUID().toString();this@ReceptionScheduling.render() }
             val reasonField=field(R.string.desk_care_reason,form,reason)
             val symptomField=field(R.string.desk_care_symptoms,form,symptoms,1000)
             reasonField.addTextChangedListener(SimpleDeskWatcher {reason=it;key=UUID.randomUUID().toString()})
             symptomField.addTextChangedListener(SimpleDeskWatcher {symptoms=it;key=UUID.randomUUID().toString()})
             picker(R.string.desk_priority,listOf("normal" to status("normal"),"urgente" to status("urgente")),priority,form) {
-                priority=it;key=UUID.randomUUID().toString();render()
+                priority=it;key=UUID.randomUUID().toString();this@ReceptionScheduling.render()
             }
             if(priority=="urgente" || mode=="immediate") note(getString(R.string.desk_urgent_notice),form)
         } else note(status(request!!.value("preferred_period")),form)
-        if(mode=="scheduled") date(day,form,true) {day=it;slots=emptyList();doctor="";key=UUID.randomUUID().toString();render()}
+        if(mode=="scheduled") date(day,form,true) {day=it;slots=emptyList();doctor="";key=UUID.randomUUID().toString();this@ReceptionScheduling.render()}
         val slotList=LinearLayout(this).apply {orientation=LinearLayout.VERTICAL}
         binding.content.addView(slotList)
-        retry={render()}
+        retry={this@ReceptionScheduling.render()}
         work({ repo.rows("specialties","select=id,name&active=eq.true") }) { catalog ->
             val choices=if(request==null) catalog else catalog.filter {it.optLong("id")==specialty}
             picker(R.string.desk_specialty,choices.map {it.value("id") to it.value("name")},specialty.toString(),form) {
-                specialty=it.toLong();slots=emptyList();doctor="";key=UUID.randomUUID().toString();render()
+                specialty=it.toLong();slots=emptyList();doctor="";key=UUID.randomUUID().toString();this@ReceptionScheduling.render()
             }
             action(R.string.desk_availability,form) {
                 if(specialty==0L) {showError(DeskException(R.string.desk_invalid));return@action}
@@ -153,16 +157,31 @@ class ReceptionAgendaActivity : ReceptionDeskActivity() {
     private var day=ReceptionClock.today()
     override fun render() {
         clear()
-        date(day) {day=it;render()}
-        note(getString(R.string.desk_agenda_help))
-        action(R.string.desk_refresh) {render()}
+        // Cabecera con la fecha larga y el total del día, como el encabezado diario del ADMIN.
+        val title=day.format(DateTimeFormatter.ofPattern("EEEE d 'de' MMMM 'de' yyyy",
+            java.util.Locale.forLanguageTag("es-SV")))
+        val head=header(R.drawable.ic_reception_calendar,getString(R.string.desk_agenda_eyebrow),
+            title,getString(R.string.desk_agenda_help))
+        val count=TextView(this).apply {
+            textSize=11f;visibility=android.view.View.GONE
+            setTextColor(getColor(R.color.wine_primary))
+            setBackgroundResource(R.drawable.bg_pill_pink)
+            setPadding(dp(10),dp(6),dp(10),dp(6))
+            layoutParams=LinearLayout.LayoutParams(-2,-2).apply {leftMargin=dp(8)}
+        }
+        head.addView(count)
+        val controls=filterRow()
+        date(day,controls) {day=it;render()}
+        compact(controls.getChildAt(0) as Button)
+        compact(action(getString(R.string.desk_refresh),controls) {render()})
         val list=LinearLayout(this).apply {orientation=LinearLayout.VERTICAL}
         binding.content.addView(list)
         retry={render()}
         work({(repo.rpc("reception_agenda",args("p_day" to day.toString())) as JSONArray).objects()}) { rows ->
-            note(getString(R.string.desk_total,rows.size),list)
-            if(rows.isEmpty()) note(getString(R.string.desk_empty),list)
-            rows.forEach {a -> appointmentCard(a,list) }
+            count.text=resources.getQuantityString(R.plurals.desk_agenda_count,rows.size,rows.size)
+            count.visibility=android.view.View.VISIBLE
+            if(rows.isEmpty()) emptyState(getString(R.string.desk_empty),R.drawable.ic_reception_calendar,list)
+            else rows.forEach {a -> appointmentCard(a,list) }
         }
     }
 }

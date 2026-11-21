@@ -1,7 +1,9 @@
 package sv.edu.catolica.hospital_universitario
 
 import androidx.core.widget.addTextChangedListener
+import android.widget.HorizontalScrollView
 import android.widget.LinearLayout
+import android.widget.TextView
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -18,16 +20,70 @@ class ReceptionRequestsActivity : ReceptionDeskActivity() {
     override fun render() {
         if(selected!=null) { detail(selected!!);return }
         clear()
-        val search=field(R.string.desk_search,value=query)
-        val controls=filterRow()
+        val metricStates=listOf("pendiente","en_revision","agendada","rechazada","cancelada")
+        // Encabezado de la bandeja con el contador de solicitudes en pantalla.
+        val head=header(R.drawable.ic_reception_requests,getString(R.string.desk_inbox_eyebrow),
+            getString(R.string.desk_inbox_title),getString(R.string.desk_inbox_help))
+        val countNumber=TextView(this).apply {
+            textSize=23f;setTypeface(typeface,android.graphics.Typeface.BOLD)
+            setTextColor(getColor(R.color.wine_primary));gravity=android.view.Gravity.CENTER
+        }
+        val countLabel=TextView(this).apply {
+            textSize=10f;setTextColor(getColor(R.color.text_secondary));gravity=android.view.Gravity.CENTER
+        }
+        head.addView(LinearLayout(this).apply {
+            orientation=LinearLayout.VERTICAL;gravity=android.view.Gravity.CENTER
+            setBackgroundResource(R.drawable.bg_count_box)
+            setPadding(dp(13),dp(9),dp(13),dp(9))
+            layoutParams=LinearLayout.LayoutParams(-2,-2).apply {leftMargin=dp(8)}
+            addView(countNumber);addView(countLabel)
+        })
+        val summary=HorizontalScrollView(this).apply {
+            isHorizontalScrollBarEnabled=false
+            layoutParams=LinearLayout.LayoutParams(-1,-2).apply {bottomMargin=dp(12)}
+        }
+        val summaryRow=LinearLayout(this).apply {orientation=LinearLayout.HORIZONTAL}
+        val metrics=linkedMapOf<String,TextView>()
+        summary.addView(summaryRow)
+        binding.content.addView(summary)
+        metricStates.forEach {code ->
+            val amount=TextView(this).apply {
+                text=getString(R.string.remote_number,0)
+                textSize=18f
+                setTypeface(typeface,android.graphics.Typeface.BOLD)
+                setTextColor(getColor(R.color.wine_primary))
+                gravity=android.view.Gravity.START
+            }
+            val label=TextView(this).apply {
+                text=status(code)
+                textSize=11f
+                setTextColor(getColor(R.color.text_secondary))
+                gravity=android.view.Gravity.START
+                layoutParams=LinearLayout.LayoutParams(-1,-2).apply {topMargin=dp(2)}
+            }
+            val chip=LinearLayout(this).apply {
+                orientation=LinearLayout.VERTICAL
+                setPadding(dp(12),dp(9),dp(12),dp(9))
+                setBackgroundResource(if(code==state) R.drawable.bg_pill_pink else R.drawable.bg_dashboard_card)
+                layoutParams=LinearLayout.LayoutParams(dp(112),-2).apply {rightMargin=dp(8)}
+                isClickable=true;isFocusable=true
+                addView(amount);addView(label)
+                setOnClickListener {if(!busy){state=code;offset=0;render()}}
+            }
+            metrics[code]=amount
+            summaryRow.addView(chip)
+        }
+        val filterCard=card(getString(R.string.desk_request_filters))
+        val search=field(R.string.desk_search,filterCard,value=query)
+        val controls=filterRow(filterCard)
         val states=listOf("","pendiente","en_revision","agendada","rechazada","cancelada")
         compact(picker(R.string.desk_state,states.map {it to if(it.isBlank()) getString(R.string.desk_open) else status(it)},state,controls) {
             state=it;offset=0;render()
         })
         compact(picker(R.string.desk_order,listOf("old" to getString(R.string.desk_old_short),"new" to getString(R.string.desk_new_short)),
             if(newest) "new" else "old",controls) {newest=it=="new";offset=0;render()})
-        val indicators=LinearLayout(this).apply {orientation=LinearLayout.VERTICAL}
-        binding.content.addView(indicators)
+        compact(action(getString(R.string.desk_refresh),controls) {offset=0;render()})
+        section(R.string.desk_request_results)
         val list=LinearLayout(this).apply {orientation=LinearLayout.VERTICAL}
         binding.content.addView(list)
         val more=action(R.string.desk_more) {}
@@ -37,13 +93,37 @@ class ReceptionRequestsActivity : ReceptionDeskActivity() {
             val visible=rows.filter {
                 (it.optJSONObject("applicant_data")?.toString().orEmpty()+" "+specialties[it.optLong("specialty_id")]).contains(query,true)
             }
-            if(visible.isEmpty()) note(getString(R.string.desk_empty),list)
+            countNumber.text=getString(R.string.remote_number,visible.size)
+            countLabel.text=resources.getQuantityString(R.plurals.desk_visible_count,visible.size)
+            if(visible.isEmpty()) emptyState(getString(R.string.desk_empty),R.drawable.ic_reception_requests,list)
             visible.forEach { row ->
                 val person=row.optJSONObject("applicant_data")?:JSONObject()
                 val title=listOf(person.value("first_name"),person.value("last_name")).joinToString(" ")
-                recordCard(title,status(row.value("status")),
+                    .trim().ifBlank {getString(R.string.desk_name_missing)}
+                val initials=listOf(person.value("first_name"),person.value("last_name"))
+                    .map{it.trim()}.filter{it.isNotEmpty()}.map{it[0].uppercaseChar()}.take(2).joinToString("")
+                // Barra de acento izquierda por estado, como las tarjetas del ADMIN.
+                val accent=when(row.value("status")) {
+                    "pendiente" -> R.drawable.bg_card_accent_pending
+                    "en_revision" -> R.drawable.bg_card_accent_review
+                    "agendada" -> R.drawable.bg_card_accent_scheduled
+                    "rechazada" -> R.drawable.bg_card_accent_rejected
+                    "cancelada" -> R.drawable.bg_card_accent_cancelled
+                    else -> 0
+                }
+                val item=recordCard(title,"",
                     listOf(specialties[row.optLong("specialty_id")].orEmpty(),status(row.value("preferred_period"))).joinToString(" · "),
-                    time(row.value("created_at")),list) {selected=row;detail(row)}
+                    getString(R.string.desk_received_at,time(row.value("created_at"))),list,accent) {selected=row;detail(row)}
+                if(initials.isNotBlank()) {
+                    item.avatar.text=initials
+                    item.avatar.visibility=android.view.View.VISIBLE
+                }
+                item.eyebrow.setText(R.string.desk_request_eyebrow)
+                item.eyebrow.visibility=android.view.View.VISIBLE
+                tintBadge(item.badge,row.value("status"))
+                item.footerLeft.setText(if(row.value("patient_id").isBlank()) R.string.desk_lookup else R.string.desk_patient_linked)
+                item.footerRight.setText(if(row.value("status")=="en_revision") R.string.desk_continue_attention else R.string.desk_view_request)
+                item.footerRow.visibility=android.view.View.VISIBLE
             }
         }
         search.addTextChangedListener {query=it.toString();display()}
@@ -54,9 +134,7 @@ class ReceptionRequestsActivity : ReceptionDeskActivity() {
         }) { (page,counts,catalog) ->
             specialties=catalog.associate {it.getLong("id") to it.value("name")}
             rows=page.first
-            chipStrip(counts.map {(s,n)->s to getString(R.string.desk_stat,status(s),n)},state,indicators) {
-                state=it;offset=0;render()
-            }
+            counts.forEach {(s,n)-> metrics[s]?.text=getString(R.string.remote_number,n)}
             more.visibility=if(page.second) android.view.View.VISIBLE else android.view.View.GONE
             display()
             more.setOnClickListener {
@@ -81,14 +159,39 @@ class ReceptionRequestsActivity : ReceptionDeskActivity() {
         clear()
         action(R.string.desk_back) { selected=null;offset=0;render() }
         val person=request.optJSONObject("applicant_data")?:JSONObject()
-        val data=card(getString(R.string.desk_request_data),patientText(person))
-        note(status(request.value("status")),data)
-        note(specialties[request.optLong("specialty_id")].orEmpty(),data)
-        note(time(request.value("created_at")),data)
-        note(request.value("reason"),data)
-        note(request.value("other_symptoms"),data)
-        note(status(request.value("preferred_period")),data)
-        if(request.value("closure_reason").isNotBlank()) note(request.value("closure_reason"),data)
+        val fullName=listOf(person.value("first_name"),person.value("last_name")).filter{it.isNotBlank()}
+            .joinToString(" ").ifBlank {getString(R.string.desk_name_missing)}
+        header(R.drawable.ic_reception_requests,getString(R.string.desk_request_eyebrow),fullName)
+        // Estado con punto y fecha de recepción, como el encabezado del detalle en el ADMIN.
+        val statusRow=LinearLayout(this).apply {
+            orientation=LinearLayout.HORIZONTAL;gravity=android.view.Gravity.CENTER_VERTICAL
+            layoutParams=LinearLayout.LayoutParams(-1,-2).apply {bottomMargin=dp(14)}
+        }
+        val stateBadge=TextView(this)
+        tintBadge(stateBadge,request.value("status"))
+        stateBadge.setPadding(dp(10),dp(6),dp(10),dp(6))
+        statusRow.addView(stateBadge)
+        statusRow.addView(TextView(this).apply {
+            text=getString(R.string.desk_received_at,time(request.value("created_at")))
+            textSize=11f;setTextColor(getColor(R.color.text_secondary))
+            layoutParams=LinearLayout.LayoutParams(0,-2,1f).apply {leftMargin=dp(10)}
+        })
+        binding.content.addView(statusRow)
+        val data=card(getString(R.string.desk_request_data))
+        var fields=listOf(
+            getString(R.string.desk_data_dui) to person.value("dui"),
+            getString(R.string.desk_data_birth) to person.value("birth_date"),
+            getString(R.string.desk_data_phone) to person.value("phone"),
+            getString(R.string.desk_email) to person.value("email"),
+            getString(R.string.desk_city) to person.value("city"),
+            getString(R.string.desk_patient_code) to person.value("patient_code"),
+            getString(R.string.desk_specialty) to specialties[request.optLong("specialty_id")].orEmpty(),
+            getString(R.string.desk_preference) to status(request.value("preferred_period")),
+            getString(R.string.desk_data_reason) to request.value("reason"),
+            getString(R.string.desk_other_symptoms) to request.value("other_symptoms"))
+        if(request.value("closure_reason").isNotBlank())
+            fields=fields+(getString(R.string.desk_closure_reason) to request.value("closure_reason"))
+        dataGrid(fields,data)
         val follow=LinearLayout(this).apply {orientation=LinearLayout.VERTICAL}
         binding.content.addView(follow)
         retry={detail(request)}
@@ -110,11 +213,18 @@ class ReceptionRequestsActivity : ReceptionDeskActivity() {
             }
             Triple(patients.singleOrNull()?.let {it to repo.record(it.value("id"))},symptoms,appointment)
         }) { (linked,symptoms,appointment) ->
-            note(symptoms.mapNotNull {it.optJSONObject("symptom_catalog")?.value("name")}.joinToString(", "),data)
-            appointment.forEach {
-                note(getString(R.string.desk_appointment,
-                    person.value("first_name")+" "+person.value("last_name"),it.value("doctor_name"),
-                    time(it.value("starts_at")),time(it.value("ends_at")),it.value("room_code"),status(it.value("status"))),follow)
+            val names=symptoms.mapNotNull {it.optJSONObject("symptom_catalog")?.value("name")}.joinToString(", ")
+            if(names.isNotBlank()) {
+                fields=fields+(getString(R.string.desk_symptoms) to names)
+                data.removeAllViews()
+                dataGrid(fields,data)
+            }
+            if(appointment.isNotEmpty()) {
+                section(R.string.desk_appointments,follow)
+                appointment.forEach {a ->
+                    if(a.value("patient_name").isBlank()) a.put("patient_name",fullName)
+                    appointmentCard(a,follow)
+                }
             }
             if(request.value("status") !in listOf("pendiente","en_revision")) return@work
             action(R.string.desk_review_action,follow) {

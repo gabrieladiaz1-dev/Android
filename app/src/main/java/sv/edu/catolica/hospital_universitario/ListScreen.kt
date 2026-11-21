@@ -303,16 +303,27 @@ class ListScreen(
             Button(activity).apply {
                 text = activity.getString(R.string.list_time_label, selectedTime)
                 setOnClickListener {
-                    val parts = selectedTime.split(":").map { it.toInt() }
+                    val parts = if (selectedTime.contains(" ")) {
+                        val meridianParts = selectedTime.uppercase(Locale.US).split(" ")
+                        val clockParts = meridianParts[0].split(":").map { it.toInt() }
+                        var hour = clockParts[0] % 12
+                        if (meridianParts[1].startsWith("PM")) hour += 12
+                        intArrayOf(hour, clockParts[1])
+                    } else {
+                        val clockParts = selectedTime.split(":").map { it.toInt() }
+                        intArrayOf(clockParts[0], clockParts[1])
+                    }
                     TimePickerDialog(
                         activity,
                         { _, hour, minute ->
-                            selectedTime = String.format(Locale.US, "%02d:%02d", hour, minute)
+                            val displayHour = if (hour == 0) 12 else if (hour > 12) hour - 12 else hour
+                            val meridian = if (hour >= 12) "pm" else "am"
+                            selectedTime = String.format(Locale.US, "%02d:%02d %s", displayHour, minute, meridian)
                             text = activity.getString(R.string.list_time_label, selectedTime)
                         },
                         parts[0],
                         parts[1],
-                        true
+                        false
                     ).show()
                 }
             }
@@ -415,17 +426,20 @@ class ListScreen(
 
     private fun currentTime(): String {
         val now = Calendar.getInstance()
+        val hour = now.get(Calendar.HOUR)
+        val displayHour = if (hour == 0) 12 else hour
         return String.format(
             Locale.US,
-            "%02d:%02d",
-            now.get(Calendar.HOUR_OF_DAY),
-            now.get(Calendar.MINUTE)
+            "%02d:%02d %s",
+            displayHour,
+            now.get(Calendar.MINUTE),
+            if (now.get(Calendar.AM_PM) == Calendar.PM) "pm" else "am"
         )
     }
 
     private fun dp(value: Int): Int = (value * activity.resources.displayMetrics.density).toInt()
 
     private companion object {
-        val TIME_REGEX = Regex("^\\d{2}:\\d{2}$")
+        val TIME_REGEX = Regex("^\\d{1,2}:\\d{2}\\s+(am|pm)$", RegexOption.IGNORE_CASE)
     }
 }

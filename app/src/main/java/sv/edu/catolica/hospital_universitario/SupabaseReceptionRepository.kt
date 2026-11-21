@@ -109,7 +109,8 @@ class SupabaseReceptionRepository : ReceptionRepository {
         listOf(it.getString("first_name"), it.getString("last_name")).joinToString(" ")
     }.orEmpty()
     private fun time(value: String): String = OffsetDateTime.parse(value).atZoneSameInstant(zone)
-        .format(DateTimeFormatter.ofPattern("HH:mm"))
+        .format(DateTimeFormatter.ofPattern("hh:mm a", java.util.Locale.US))
+        .lowercase(java.util.Locale.US)
     private fun date(value: String): String = OffsetDateTime.parse(value).atZoneSameInstant(zone)
         .format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))
 }

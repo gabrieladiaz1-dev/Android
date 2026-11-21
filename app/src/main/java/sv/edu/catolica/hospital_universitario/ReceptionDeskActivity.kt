@@ -248,7 +248,8 @@ abstract class ReceptionDeskActivity : AppCompatActivity() {
     })
     fun time(value: String): String = runCatching {
         OffsetDateTime.parse(value).atZoneSameInstant(ReceptionClock.zone)
-            .format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"))
+            .format(DateTimeFormatter.ofPattern("dd/MM/yyyy hh:mm a", java.util.Locale.US))
+            .lowercase(java.util.Locale.US)
     }.getOrDefault(value)
     fun required(input: EditText): String {
         val value=input.text.toString().trim()
@@ -285,21 +286,27 @@ abstract class ReceptionDeskActivity : AppCompatActivity() {
             })
         }
     }
-    fun recordCard(name:String,badge:String,detail:String,date:String,target:LinearLayout=binding.content,open:()->Unit) {
+    fun recordCard(name:String,badge:String,detail:String,date:String,target:LinearLayout=binding.content,accentRes:Int=0,open:()->Unit): ItemReceptionRecordBinding {
         val row=ItemReceptionRecordBinding.inflate(layoutInflater,target,false)
         row.name.text=name;row.badge.text=badge;row.detail.text=detail;row.date.text=date
         row.root.setOnClickListener {if(!busy) open()}
+        // Barra de acento izquierda por estado; sin acento conserva la tarjeta original.
+        if(accentRes!=0) row.root.setBackgroundResource(accentRes)
         target.addView(row.root)
+        return row
     }
     fun appointmentCard(a:org.json.JSONObject,target:LinearLayout) {
         fun hour(v:String)=runCatching {
-            OffsetDateTime.parse(v).atZoneSameInstant(ReceptionClock.zone).format(DateTimeFormatter.ofPattern("HH:mm"))
+            OffsetDateTime.parse(v).atZoneSameInstant(ReceptionClock.zone)
+                .format(DateTimeFormatter.ofPattern("hh:mm a", java.util.Locale.US))
+                .lowercase(java.util.Locale.US)
         }.getOrDefault(v)
         val row=ItemReceptionAppointmentBinding.inflate(layoutInflater,target,false)
         row.start.text=hour(a.value("starts_at"));row.end.text=hour(a.value("ends_at"))
         row.patient.text=a.value("patient_name");row.doctor.text=a.value("doctor_name")
         row.room.text=getString(R.string.desk_consulting_room,a.value("room_code"))
-        row.badge.text=status(a.value("status"))
+        // Estado con punto y tinte por estado, como la agenda del ADMIN.
+        tintBadge(row.badge, a.value("status"))
         target.addView(row.root)
     }
     fun tileGrid(items: List<Triple<Int,Int,Pair<Int,()->Unit>>>) {
@@ -332,13 +339,110 @@ abstract class ReceptionDeskActivity : AppCompatActivity() {
         }
         return fields
     }
-    fun section(label:Int) {
-        binding.content.addView(TextView(this).apply {
+    fun section(label:Int, target:LinearLayout=binding.content) {
+        target.addView(TextView(this).apply {
             setText(label);textSize=17f;setTypeface(typeface,android.graphics.Typeface.BOLD)
             setTextColor(getColor(R.color.text_primary));setPadding(dp(4),dp(14),0,dp(14))
         })
     }
-    private fun dp(v: Int) = (v*resources.displayMetrics.density).toInt()
+    /** Cabecera con icono, antetítulo y título, como los encabezados del ADMIN. */
+    fun header(icon:Int, eyebrow:String, title:String, caption:String?=null): LinearLayout {
+        val row=LinearLayout(this).apply {
+            orientation=LinearLayout.HORIZONTAL;gravity=android.view.Gravity.CENTER_VERTICAL
+            layoutParams=LinearLayout.LayoutParams(-1,-2).apply {bottomMargin=dp(14)}
+        }
+        row.addView(ImageView(this).apply {
+            setImageResource(icon);setColorFilter(getColor(R.color.wine_primary))
+            setBackgroundResource(R.drawable.bg_pill_pink)
+            layoutParams=LinearLayout.LayoutParams(dp(48),dp(48)).apply {rightMargin=dp(12)}
+            setPadding(dp(13),dp(13),dp(13),dp(13))
+            importantForAccessibility=View.IMPORTANT_FOR_ACCESSIBILITY_NO
+        })
+        val column=LinearLayout(this).apply {
+            orientation=LinearLayout.VERTICAL
+            layoutParams=LinearLayout.LayoutParams(0,-2,1f)
+        }
+        column.addView(TextView(this).apply {
+            text=eyebrow;textSize=10f;letterSpacing=0.12f
+            setTypeface(typeface,android.graphics.Typeface.BOLD)
+            setTextColor(getColor(R.color.text_secondary))
+        })
+        column.addView(TextView(this).apply {
+            text=title;textSize=19f
+            setTypeface(typeface,android.graphics.Typeface.BOLD)
+            setTextColor(getColor(R.color.wine_primary))
+            layoutParams=LinearLayout.LayoutParams(-1,-2).apply {topMargin=dp(3)}
+        })
+        if(caption!=null) column.addView(TextView(this).apply {
+            text=caption;textSize=12f
+            setTextColor(getColor(R.color.text_secondary))
+            layoutParams=LinearLayout.LayoutParams(-1,-2).apply {topMargin=dp(5)}
+        })
+        row.addView(column)
+        binding.content.addView(row)
+        return row
+    }
+    /** Rejilla etiqueta/valor de dos columnas, como los datos de detalle del ADMIN. */
+    fun dataGrid(fields: List<Pair<String,String>>, target: LinearLayout): LinearLayout {
+        val grid=LinearLayout(this).apply {orientation=LinearLayout.VERTICAL}
+        fields.filter{it.second.isNotBlank()}.chunked(2).forEach { pair ->
+            val row=LinearLayout(this).apply {orientation=LinearLayout.HORIZONTAL}
+            pair.forEach { (label,value) ->
+                val cell=LinearLayout(this).apply {
+                    orientation=LinearLayout.VERTICAL
+                    layoutParams=LinearLayout.LayoutParams(0,-2,1f).apply {rightMargin=dp(16);bottomMargin=dp(12)}
+                }
+                cell.addView(TextView(this).apply {
+                    text=label;textSize=11f
+                    setTextColor(getColor(R.color.text_secondary))
+                })
+                cell.addView(TextView(this).apply {
+                    text=value;textSize=13f
+                    setTextColor(getColor(R.color.text_primary))
+                    layoutParams=LinearLayout.LayoutParams(-1,-2).apply {topMargin=dp(3)}
+                })
+                row.addView(cell)
+            }
+            grid.addView(row)
+        }
+        target.addView(grid)
+        return grid
+    }
+    /** Estado vacío con icono, como los huecos punteados del ADMIN. */
+    fun emptyState(message:String, icon:Int, target:LinearLayout=binding.content) {
+        val box=LinearLayout(this).apply {
+            orientation=LinearLayout.VERTICAL;gravity=android.view.Gravity.CENTER
+            setPadding(dp(24),dp(32),dp(24),dp(32))
+            setBackgroundResource(R.drawable.bg_empty_state)
+            layoutParams=LinearLayout.LayoutParams(-1,-2).apply {bottomMargin=dp(10)}
+        }
+        box.addView(ImageView(this).apply {
+            setImageResource(icon);setColorFilter(getColor(R.color.text_secondary))
+            layoutParams=LinearLayout.LayoutParams(dp(40),dp(40))
+            importantForAccessibility=View.IMPORTANT_FOR_ACCESSIBILITY_NO
+        })
+        box.addView(TextView(this).apply {
+            text=message;textSize=13f;gravity=android.view.Gravity.CENTER
+            setTextColor(getColor(R.color.text_secondary))
+            layoutParams=LinearLayout.LayoutParams(-1,-2).apply {topMargin=dp(12)}
+        })
+        target.addView(box)
+    }
+    /** Badge con punto y tinte por estado, igual que las etiquetas del ADMIN. */
+    fun tintBadge(badge: TextView, code: String) {
+        badge.text = "● " + status(code)
+        val (background, foreground) = when(code) {
+            "pendiente","en_atencion" -> R.drawable.bg_badge_waiting to R.color.text_primary
+            "en_revision","confirmada" -> R.drawable.bg_badge_inprogress to R.color.text_primary
+            "agendada","completada" -> R.drawable.bg_badge_confirmed to R.color.text_primary
+            "rechazada" -> R.drawable.bg_badge_triage to R.color.text_primary
+            "cancelada","no_asistio" -> R.drawable.bg_input_rounded to R.color.text_secondary
+            else -> R.drawable.bg_pill_pink to R.color.wine_primary
+        }
+        badge.setBackgroundResource(background)
+        badge.setTextColor(getColor(foreground))
+    }
+    internal fun dp(v: Int) = (v*resources.displayMetrics.density).toInt()
 }
 
 class ReceptionHubActivity : ReceptionDeskActivity() {

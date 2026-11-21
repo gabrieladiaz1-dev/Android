@@ -4,11 +4,11 @@ package sv.edu.catolica.hospital_universitario
 object Seeds {
 
     val appointments: List<Entry> = listOf(
-        Entry(id = 1L, icon = "✚", lead = "08:00", title = "María López", meta = "Medicina interna · Dr. Ramírez", status = Statuses.CONFIRMADA),
-        Entry(id = 2L, icon = "✚", lead = "09:30", title = "Carlos Mendoza", meta = "Cardiología · Dra. Castillo", status = Statuses.EN_ESPERA),
-        Entry(id = 3L, icon = "✚", lead = "11:00", title = "Lucía García", meta = "Pediatría · Dra. Torres", status = Statuses.CONFIRMADA),
-        Entry(id = 4L, icon = "✚", lead = "13:30", title = "Juan Pérez", meta = "Consulta general · Dr. Méndez", status = Statuses.EN_CURSO),
-        Entry(id = 5L, icon = "✚", lead = "15:00", title = "Roberto Díaz", meta = "Medicina interna · Dr. Ramírez", status = Statuses.PENDIENTE)
+        Entry(id = 1L, icon = "✚", lead = "08:00 am", title = "María López", meta = "Medicina interna · Dr. Ramírez", status = Statuses.CONFIRMADA),
+        Entry(id = 2L, icon = "✚", lead = "09:30 am", title = "Carlos Mendoza", meta = "Cardiología · Dra. Castillo", status = Statuses.EN_ESPERA),
+        Entry(id = 3L, icon = "✚", lead = "11:00 am", title = "Lucía García", meta = "Pediatría · Dra. Torres", status = Statuses.CONFIRMADA),
+        Entry(id = 4L, icon = "✚", lead = "01:30 pm", title = "Juan Pérez", meta = "Consulta general · Dr. Méndez", status = Statuses.EN_CURSO),
+        Entry(id = 5L, icon = "✚", lead = "03:00 pm", title = "Roberto Díaz", meta = "Medicina interna · Dr. Ramírez", status = Statuses.PENDIENTE)
     )
 
     val admissions: List<Entry> = listOf(
@@ -20,17 +20,17 @@ object Seeds {
     )
 
     val turns: List<Entry> = listOf(
-        Entry(id = 1L, icon = "✚", lead = "A-021", title = "María López", meta = "Cardiología · 09:30", status = Statuses.EN_ESPERA),
-        Entry(id = 2L, icon = "✚", lead = "A-022", title = "Juan Pérez", meta = "Consulta general · 10:00", status = Statuses.LLAMADO),
-        Entry(id = 3L, icon = "✚", lead = "A-023", title = "Ana Herrera", meta = "Medicina interna · 10:15", status = Statuses.EN_ESPERA)
+        Entry(id = 1L, icon = "✚", lead = "A-021", title = "María López", meta = "Cardiología · 09:30 am", status = Statuses.EN_ESPERA),
+        Entry(id = 2L, icon = "✚", lead = "A-022", title = "Juan Pérez", meta = "Consulta general · 10:00 am", status = Statuses.LLAMADO),
+        Entry(id = 3L, icon = "✚", lead = "A-023", title = "Ana Herrera", meta = "Medicina interna · 10:15 am", status = Statuses.EN_ESPERA)
     )
 
     val doctorAppointments: List<Entry> = listOf(
-        Entry(id = 1L, icon = "▦", lead = "08:00", title = "María López", meta = "Medicina interna · Primera vez", status = Statuses.CONFIRMADA),
-        Entry(id = 2L, icon = "▦", lead = "09:30", title = "Carlos Mendoza", meta = "Cardiología · Control", status = Statuses.EN_ESPERA),
-        Entry(id = 3L, icon = "▦", lead = "11:00", title = "Lucía García", meta = "Pediatría · Seguimiento", status = Statuses.CONFIRMADA),
-        Entry(id = 4L, icon = "▦", lead = "13:30", title = "Juan Pérez", meta = "Consulta general · Urgencia menor", status = Statuses.EN_CURSO),
-        Entry(id = 5L, icon = "▦", lead = "15:00", title = "Roberto Díaz", meta = "Medicina interna · Control", status = Statuses.PENDIENTE)
+        Entry(id = 1L, icon = "▦", lead = "08:00 am", title = "María López", meta = "Medicina interna · Primera vez", status = Statuses.CONFIRMADA),
+        Entry(id = 2L, icon = "▦", lead = "09:30 am", title = "Carlos Mendoza", meta = "Cardiología · Control", status = Statuses.EN_ESPERA),
+        Entry(id = 3L, icon = "▦", lead = "11:00 am", title = "Lucía García", meta = "Pediatría · Seguimiento", status = Statuses.CONFIRMADA),
+        Entry(id = 4L, icon = "▦", lead = "01:30 pm", title = "Juan Pérez", meta = "Consulta general · Urgencia menor", status = Statuses.EN_CURSO),
+        Entry(id = 5L, icon = "▦", lead = "03:00 pm", title = "Roberto Díaz", meta = "Medicina interna · Control", status = Statuses.PENDIENTE)
     )
 
     val doctorLab: List<Entry> = listOf(
@@ -57,26 +57,26 @@ object Seeds {
     )
 
     val nursingIndications: List<Entry> = listOf(
-        Entry(id = 1L, icon = "✚", lead = "", title = "Carlos Mendoza", meta = "Control de presión · 10:00", status = Statuses.EN_ESPERA),
-        Entry(id = 2L, icon = "✚", lead = "", title = "María López", meta = "Verificar signos · 10:30", status = Statuses.EN_ESPERA),
-        Entry(id = 3L, icon = "✚", lead = "", title = "Roberto Díaz", meta = "Glucemia capilar · 11:00", status = Statuses.EN_CURSO),
-        Entry(id = 4L, icon = "✚", lead = "", title = "Lucía García", meta = "Registrar signos · 12:00", status = Statuses.COMPLETADA),
-        Entry(id = 5L, icon = "✚", lead = "", title = "Ana Herrera", meta = "Vigilancia clínica · 13:00", status = Statuses.EN_ESPERA)
+        Entry(id = 1L, icon = "✚", lead = "", title = "Carlos Mendoza", meta = "Control de presión · 10:00 am", status = Statuses.EN_ESPERA),
+        Entry(id = 2L, icon = "✚", lead = "", title = "María López", meta = "Verificar signos · 10:30 am", status = Statuses.EN_ESPERA),
+        Entry(id = 3L, icon = "✚", lead = "", title = "Roberto Díaz", meta = "Glucemia capilar · 11:00 am", status = Statuses.EN_CURSO),
+        Entry(id = 4L, icon = "✚", lead = "", title = "Lucía García", meta = "Registrar signos · 12:00 pm", status = Statuses.COMPLETADA),
+        Entry(id = 5L, icon = "✚", lead = "", title = "Ana Herrera", meta = "Vigilancia clínica · 01:00 pm", status = Statuses.EN_ESPERA)
     )
 
     val doctorSchedule: List<Entry> = listOf(
-        Entry(id = 1L, icon = "", lead = "", title = "Lunes 19", meta = "07:00–15:00", status = Statuses.MANANA),
-        Entry(id = 2L, icon = "", lead = "", title = "Martes 20", meta = "07:00–15:00", status = Statuses.MANANA),
-        Entry(id = 3L, icon = "", lead = "", title = "Miércoles 21", meta = "07:00–15:00", status = Statuses.MANANA),
-        Entry(id = 4L, icon = "", lead = "", title = "Jueves 22", meta = "Guardia 15:00–23:00", status = Statuses.TARDE),
+        Entry(id = 1L, icon = "", lead = "", title = "Lunes 19", meta = "07:00 am–03:00 pm", status = Statuses.MANANA),
+        Entry(id = 2L, icon = "", lead = "", title = "Martes 20", meta = "07:00 am–03:00 pm", status = Statuses.MANANA),
+        Entry(id = 3L, icon = "", lead = "", title = "Miércoles 21", meta = "07:00 am–03:00 pm", status = Statuses.MANANA),
+        Entry(id = 4L, icon = "", lead = "", title = "Jueves 22", meta = "Guardia 03:00 pm–11:00 pm", status = Statuses.TARDE),
         Entry(id = 5L, icon = "", lead = "", title = "Viernes 23", meta = "Descanso", status = Statuses.LIBRE)
     )
 
     val nursingTurns: List<Entry> = listOf(
-        Entry(id = 1L, icon = "", lead = "", title = "Lunes 19", meta = "06:00–14:00", status = Statuses.MANANA),
-        Entry(id = 2L, icon = "", lead = "", title = "Martes 20", meta = "06:00–14:00", status = Statuses.MANANA),
-        Entry(id = 3L, icon = "", lead = "", title = "Miércoles 21", meta = "06:00–14:00", status = Statuses.MANANA),
+        Entry(id = 1L, icon = "", lead = "", title = "Lunes 19", meta = "06:00 am–02:00 pm", status = Statuses.MANANA),
+        Entry(id = 2L, icon = "", lead = "", title = "Martes 20", meta = "06:00 am–02:00 pm", status = Statuses.MANANA),
+        Entry(id = 3L, icon = "", lead = "", title = "Miércoles 21", meta = "06:00 am–02:00 pm", status = Statuses.MANANA),
         Entry(id = 4L, icon = "", lead = "", title = "Jueves 22", meta = "Descanso", status = Statuses.LIBRE),
-        Entry(id = 5L, icon = "", lead = "", title = "Viernes 23", meta = "14:00–22:00", status = Statuses.TARDE)
+        Entry(id = 5L, icon = "", lead = "", title = "Viernes 23", meta = "02:00 pm–10:00 pm", status = Statuses.TARDE)
     )
 }

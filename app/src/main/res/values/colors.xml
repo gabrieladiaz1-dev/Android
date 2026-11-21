@@ -10,4 +10,10 @@
     <color name="input_background">#FAF8FA</color>
     <color name="white">#FFFFFFFF</color>
     <color name="black">#FF000000</color>
+    <!-- Acentos de estado de las tarjetas (borde izquierdo, del maquetado del ADMIN). -->
+    <color name="accent_pending">#D4AA58</color>
+    <color name="accent_review">#8B9FBC</color>
+    <color name="accent_scheduled">#70AD8D</color>
+    <color name="accent_rejected">#CC8B9C</color>
+    <color name="accent_cancelled">#AC93BD</color>
 </resources>
