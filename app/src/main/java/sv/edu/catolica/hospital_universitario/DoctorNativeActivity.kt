@@ -5,7 +5,12 @@ import android.os.Bundle
 import android.view.View
 import android.view.ViewGroup
 import android.widget.*
+import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
+import kotlinx.coroutines.launch
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
@@ -23,11 +28,11 @@ import java.time.format.DateTimeFormatter
 /** Base visual nativa; una Activity por sección, sin WebView ni datos de demostración. */
 abstract class DoctorNativeActivity : AppCompatActivity() {
     lateinit var binding: ActivityDoctorNativeBinding
-    val repo: DoctorNativeRepository get() = AppContainer.doctorNativeRepository
+    val viewModel: DoctorNativeViewModel by viewModels()
+    val repo: DoctorNativeRepository get() = viewModel.repository
     val ctx get() = AppContainer.doctorNativeContext
     private var generation = 0
-    var busy = false
-        private set
+    val busy: Boolean get() = viewModel.loading.value
     var retry: (() -> Unit)? = null
     abstract val titleRes: Int
     abstract fun render()
@@ -63,6 +68,9 @@ abstract class DoctorNativeActivity : AppCompatActivity() {
         }
         active.setBackgroundResource(R.drawable.bg_nav_selected)
         binding.error.setOnClickListener { if (!busy) retry?.invoke() }
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) { viewModel.loading.collect { showLoading(it) } }
+        }
         render()
     }
 
@@ -182,33 +190,26 @@ abstract class DoctorNativeActivity : AppCompatActivity() {
         }
         dialog.show()
     }
+    /** Lanza una operación en el ViewModel (corrutinas) y pinta el resultado si la vista sigue vigente. */
     fun <T> work(operation: () -> T, success: (T) -> Unit) {
-        if (busy) return
-        busy = true
         val version = generation
-        val user = SessionManager.currentUser
-        binding.loading.visibility=View.VISIBLE
         binding.error.visibility=View.GONE
-        enable(binding.content,false)
-        binding.navHome.isEnabled=false; binding.navRequests.isEnabled=false
-        binding.navAgenda.isEnabled=false; binding.navWalkin.isEnabled=false;binding.navMore.isEnabled=false
-        AppContainer.ioExecutor.execute {
-            val result=runCatching {
-                if (SessionManager.currentUser !== user || user?.role != SessionManager.Role.DOCTOR)
-                    throw AuthException(R.string.auth_access_denied)
-                operation()
-            }
-            runOnUiThread {
-                if (isDestroyed || isFinishing) return@runOnUiThread
-                busy=false
-                binding.loading.visibility=View.GONE
-                enable(binding.content,true)
-                binding.navHome.isEnabled=true; binding.navRequests.isEnabled=true
-                binding.navAgenda.isEnabled=true; binding.navWalkin.isEnabled=true;binding.navMore.isEnabled=true
-                if (version != generation || SessionManager.currentUser !== user) return@runOnUiThread
-                result.fold(success) { showError(it) }
-            }
+        viewModel.execute(operation) { result ->
+            if (isDestroyed || isFinishing) return@execute
+            showLoading(false)
+            if (version != generation) return@execute
+            result.fold(success) { showError(it) }
         }
+    }
+    private var shownLoading = false
+    /** Idempotente: solo actúa en cambios reales, así no reactiva controles que la vista deshabilitó a propósito. */
+    private fun showLoading(loading: Boolean) {
+        if (loading == shownLoading) return
+        shownLoading = loading
+        binding.loading.visibility=if (loading) View.VISIBLE else View.GONE
+        enable(binding.content,!loading)
+        binding.navHome.isEnabled=!loading; binding.navRequests.isEnabled=!loading
+        binding.navAgenda.isEnabled=!loading; binding.navWalkin.isEnabled=!loading;binding.navMore.isEnabled=!loading
     }
     fun showError(error: Throwable) {
         binding.error.text=when(error) {

@@ -5,15 +5,20 @@ import android.text.method.HideReturnsTransformationMethod
 import android.text.method.PasswordTransformationMethod
 import android.util.Patterns
 import android.widget.Toast
+import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
+import kotlinx.coroutines.launch
 import sv.edu.catolica.hospital_universitario.databinding.ActivityMainBinding
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
     private var isPasswordVisible = false
-    private val authRepository: AuthRepository = AppContainer.authRepository
-    private var pendingSession: AuthSession? = null
+    private val viewModel: LoginViewModel by viewModels()
+    private var roleDialogShown = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -21,27 +26,26 @@ class MainActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         setupListeners()
+        observeState()
         binding.btnNursingRole.visibility = android.view.View.GONE
         binding.btnDoctorRole.visibility = android.view.View.GONE
     }
 
-    private fun signIn(email: String, password: String) {
-        setBusy(true)
-        AppContainer.ioExecutor.execute {
-            val result = runCatching { authRepository.signIn(email, password) }
-            runOnUiThread {
-                if (isDestroyed || isFinishing) {
-                    result.getOrNull()?.let { discard(it) }
-                    return@runOnUiThread
+    /** Observa el estado del ViewModel y pinta la pantalla (MVVM). */
+    private fun observeState() {
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.state.collect { state ->
+                    setBusy(state is LoginState.Loading)
+                    when (state) {
+                        is LoginState.Authenticated -> if (!roleDialogShown) chooseRole(state.session)
+                        is LoginState.Failed -> {
+                            Toast.makeText(this@MainActivity, state.messageRes, Toast.LENGTH_LONG).show()
+                            viewModel.consumed()
+                        }
+                        else -> Unit
+                    }
                 }
-                setBusy(false)
-                result.fold(onSuccess = { session ->
-                    pendingSession = session
-                    chooseRole(session)
-                }, onFailure = { error ->
-                    Toast.makeText(this, (error as? AuthException)?.messageRes
-                        ?: R.string.auth_server_error, Toast.LENGTH_LONG).show()
-                })
             }
         }
     }
@@ -52,6 +56,7 @@ class MainActivity : AppCompatActivity() {
             enter(session, roles.single())
             return
         }
+        roleDialogShown = true
         com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
             .setTitle(R.string.auth_choose_role)
             .setItems(roles.map { getString(when (it) {
@@ -59,12 +64,13 @@ class MainActivity : AppCompatActivity() {
                 SessionManager.Role.NURSING -> R.string.auth_role_nursing
                 SessionManager.Role.DOCTOR -> R.string.auth_role_doctor
             }) }.toTypedArray()) { _, which -> enter(session, roles[which]) }
-            .setOnCancelListener { discardPending() }
+            .setOnCancelListener { roleDialogShown = false; viewModel.discard(session) }
             .show()
     }
 
     private fun enter(session: AuthSession, role: SessionManager.Role) {
-        pendingSession = null
+        roleDialogShown = false
+        viewModel.consumed()
         SessionManager.start(session, role)
         Navigator.goToHomeForRole(this, role, closeCurrent = true)
     }
@@ -73,20 +79,6 @@ class MainActivity : AppCompatActivity() {
         binding.btnLogin.isEnabled = !busy
         binding.btnNursingRole.isEnabled = !busy
         binding.btnDoctorRole.isEnabled = !busy
-    }
-
-    private fun discard(session: AuthSession) {
-        AppContainer.ioExecutor.execute { runCatching { authRepository.signOut(session.accessToken) } }
-    }
-
-    private fun discardPending() {
-        pendingSession?.let { discard(it) }
-        pendingSession = null
-    }
-
-    override fun onDestroy() {
-        discardPending()
-        super.onDestroy()
     }
 
     private fun setupListeners() {
@@ -127,7 +119,7 @@ class MainActivity : AppCompatActivity() {
                 return@setOnClickListener
             }
 
-            signIn(email, password)
+            viewModel.signIn(email, password)
         }
 
         // Forgot password click
