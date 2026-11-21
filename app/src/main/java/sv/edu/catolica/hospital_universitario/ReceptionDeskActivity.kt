@@ -58,10 +58,11 @@ abstract class ReceptionDeskActivity : AppCompatActivity() {
         binding.navWalkin.setOnClickListener { if (!busy) Navigator.goToReceptionWalkin(this, true) }
         binding.navMore.setOnClickListener {
             if(!busy) MaterialAlertDialogBuilder(this).setItems(arrayOf(
-                getString(R.string.desk_patients),getString(R.string.desk_hospital),getString(R.string.dialog_logout_title))) {_,i->
+                getString(R.string.desk_patients),getString(R.string.desk_hospital),getString(R.string.desk_ambulance),getString(R.string.dialog_logout_title))) {_,i->
                 when(i) {
                     0->Navigator.goToPatients(this,true)
                     1->Navigator.goToAdmissions(this,true)
+                    2->Navigator.goToReceptionAmbulance(this,true)
                     else->Navigator.logout(this)
                 }
             }.show()
@@ -305,7 +306,9 @@ abstract class ReceptionDeskActivity : AppCompatActivity() {
         val row=ItemReceptionAppointmentBinding.inflate(layoutInflater,target,false)
         row.start.text=hour(a.value("starts_at"));row.end.text=hour(a.value("ends_at"))
         row.patient.text=a.value("patient_name");row.doctor.text=a.value("doctor_name")
-        row.room.text=getString(R.string.desk_consulting_room,a.value("room_code"))
+        // Turno hospitalario (appointments.queue_number, asignado por el servidor); se muestra junto al consultorio.
+        row.room.text=a.value("queue_number").takeIf { it.isNotBlank() }?.let { getString(R.string.desk_room_queue,a.value("room_code"),it) }
+            ?: getString(R.string.desk_consulting_room,a.value("room_code"))
         // Estado con punto y tinte por estado, como la agenda del ADMIN.
         tintBadge(row.badge, a.value("status"))
         target.addView(row.root)

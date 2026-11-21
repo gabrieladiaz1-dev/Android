@@ -29,13 +29,15 @@ internal fun args(vararg values: Pair<String, Any?>): JSONObject =
 class SupabaseReceptionDeskRepository : ReceptionDeskRepository {
     private val states = listOf("pendiente", "en_revision", "agendada", "rechazada", "cancelada")
     private val tables = setOf("appointment_requests", "specialties", "patients", "medical_records",
-        "appointment_request_symptoms", "doctor_specialties", "appointments", "consulting_rooms")
+        "appointment_request_symptoms", "doctor_specialties", "appointments", "consulting_rooms",
+        "ambulances", "ambulance_requests")
     private val functions = setOf("review_attention_request", "link_attention_patient", "create_attention_patient",
         "close_attention_request", "schedule_appointment", "get_medical_availability", "reception_doctor_day",
         "reception_agenda", "create_walkin_patient", "reception_walkin_attention",
         "admission_assessment_context", "reception_request_admission_assessment", "reception_hospital_inventory",
         "reception_admissions", "reception_hospital_detail", "reception_admission_availability",
-        "reception_review_admission", "reception_resolve_admission", "release_bed", "complete_hospital_bed_cleaning")
+        "reception_review_admission", "reception_resolve_admission", "release_bed", "complete_hospital_bed_cleaning",
+        "request_medical_transport")
 
     override fun rows(table: String, query: String): List<JSONObject> {
         require(table in tables)

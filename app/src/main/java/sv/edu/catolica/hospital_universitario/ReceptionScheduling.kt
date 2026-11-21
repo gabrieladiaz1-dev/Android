@@ -177,7 +177,16 @@ class ReceptionAgendaActivity : ReceptionDeskActivity() {
         val list=LinearLayout(this).apply {orientation=LinearLayout.VERTICAL}
         binding.content.addView(list)
         retry={render()}
-        work({(repo.rpc("reception_agenda",args("p_day" to day.toString())) as JSONArray).objects()}) { rows ->
+        work({
+            val agenda=(repo.rpc("reception_agenda",args("p_day" to day.toString())) as JSONArray).objects()
+            // reception_agenda no publica el turno: se lee appointments.queue_number (RLS de recepción) y se une por id.
+            val ids=agenda.map { it.value("id") }.filter { Regex("^[0-9a-fA-F-]{36}$").matches(it) }
+            if(ids.isNotEmpty()) {
+                val turns=repo.rows("appointments","select=id,queue_number&id=in.(${ids.joinToString(",")})").associate { it.value("id") to it.value("queue_number") }
+                agenda.forEach { a -> turns[a.value("id")]?.takeIf { it.isNotBlank() }?.let { a.put("queue_number",it) } }
+            }
+            agenda
+        }) { rows ->
             count.text=resources.getQuantityString(R.plurals.desk_agenda_count,rows.size,rows.size)
             count.visibility=android.view.View.VISIBLE
             if(rows.isEmpty()) emptyState(getString(R.string.desk_empty),R.drawable.ic_reception_calendar,list)

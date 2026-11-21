@@ -86,6 +86,9 @@ object Navigator {
     fun goToReceptionRequests(activity: Activity, closeCurrent: Boolean = false) =
         navigate(activity, ReceptionRequestsActivity::class.java, closeCurrent)
 
+    fun goToReceptionAmbulance(activity: Activity, closeCurrent: Boolean = false) =
+        navigate(activity, ReceptionAmbulanceActivity::class.java, closeCurrent)
+
     fun goToReceptionWalkin(activity: Activity, closeCurrent: Boolean = false) =
         navigate(activity, ReceptionWalkinActivity::class.java, closeCurrent)
 

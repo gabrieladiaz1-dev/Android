@@ -31,6 +31,7 @@
         <activity android:name=".ReceptionAgendaActivity" android:exported="false" android:theme="@style/Theme.Hospital_Universitario" android:windowSoftInputMode="adjustResize" />
         <activity android:name=".ReceptionHospitalActivity" android:exported="false" android:theme="@style/Theme.Hospital_Universitario" android:windowSoftInputMode="adjustResize" />
         <activity android:name=".ReceptionWalkinActivity" android:exported="false" android:theme="@style/Theme.Hospital_Universitario" android:windowSoftInputMode="adjustResize" />
+        <activity android:name=".ReceptionAmbulanceActivity" android:exported="false" android:theme="@style/Theme.Hospital_Universitario" android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".HomeActivity"
             android:exported="false"
