@@ -1,372 +1,406 @@
 package sv.edu.catolica.hospital_universitario
 
-import android.app.DatePickerDialog
+import android.app.Dialog
+import android.content.res.ColorStateList
+import android.graphics.Color
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
-import android.widget.*
+import android.view.WindowManager
+import android.widget.FrameLayout
+import android.widget.ImageView
+import android.widget.LinearLayout
+import android.widget.ScrollView
+import android.widget.TextView
+import androidx.activity.OnBackPressedCallback
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.widget.doAfterTextChanged
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
-import kotlinx.coroutines.launch
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import kotlinx.coroutines.launch
+import org.json.JSONObject
 import sv.edu.catolica.hospital_universitario.databinding.ActivityDoctorNativeBinding
-import sv.edu.catolica.hospital_universitario.databinding.ItemReceptionCardBinding
-import sv.edu.catolica.hospital_universitario.databinding.ItemReceptionFieldBinding
-import sv.edu.catolica.hospital_universitario.databinding.ItemReceptionTileBinding
-import sv.edu.catolica.hospital_universitario.databinding.ItemReceptionMetricBinding
-import sv.edu.catolica.hospital_universitario.databinding.ItemReceptionRecordBinding
-import sv.edu.catolica.hospital_universitario.databinding.ItemReceptionAppointmentBinding
 import java.time.LocalDate
-import java.time.OffsetDateTime
+import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
+import java.util.Locale
 
-/** Base visual nativa; una Activity por sección, sin WebView ni datos de demostración. */
+/** Formatos de fecha en America/El_Salvador con locale es-SV (ConsultationFormat / DoctorDate de iOS). */
+object DoctorFormat {
+    val locale: Locale = Locale.forLanguageTag("es-SV")
+    private fun pattern(value: String) = DateTimeFormatter.ofPattern(value, locale)
+    private val complete = pattern("EEEE, d 'de' MMMM 'de' yyyy") /*raw*/
+    private val time = pattern("h:mm a") /*raw*/
+    private val medium = pattern("d MMM yyyy, h:mm a") /*raw*/
+    private val dayMonth = pattern("EEEE, d 'de' MMMM") /*raw*/
+    private val shortDay = pattern("EEE, d MMM yyyy") /*raw*/
+    private val abbrDay = pattern("EEE d MMM") /*raw*/
+    private val longDate = pattern("d 'de' MMMM 'de' yyyy") /*raw*/
+    private val dayMonthOnly = pattern("d 'de' MMMM") /*raw*/
+    fun cap(text: String) = text.replaceFirstChar { it.titlecase(locale) }
+    fun date(value: ZonedDateTime?, missing: String) = value?.let { cap(complete.format(it)) } ?: missing
+    fun time(value: ZonedDateTime?, missing: String) = value?.let { time.format(it) } ?: missing
+    fun display(value: String?, missing: String) = DoctorRules.local(value)?.let { medium.format(it) } ?: missing
+    fun dayMonth(value: LocalDate) = dayMonth.format(value)
+    fun longWeekday(value: LocalDate) = complete.format(value)
+    fun shortDay(value: LocalDate) = shortDay.format(value)
+    fun abbrDay(value: ZonedDateTime) = abbrDay.format(value)
+    fun longDate(value: LocalDate) = longDate.format(value)
+    fun dayMonthOnly(value: LocalDate) = dayMonthOnly.format(value)
+    fun hour12(value: ZonedDateTime?): String = value?.let { String.format(Locale.US, "%d:%02d", if (it.hour % 12 == 0) 12 else it.hour % 12, it.minute) } ?: "--:--"
+    fun period(a: JSONObject, missing: String): String {
+        val raw = a.value("period").drop(1).dropLast(1).split(",").map { it.trim().trim('"') }
+        val start = DoctorRules.local(raw.getOrNull(0)); val end = DoctorRules.local(raw.getOrNull(1))
+        return if (start == null || end == null) missing else medium.format(start) + " – " + medium.format(end)
+    }
+}
+
+/** Base del módulo Doctor: shell idéntico al portal iOS. Una Activity por pantalla, sin WebView ni datos de ejemplo. */
 abstract class DoctorNativeActivity : AppCompatActivity() {
     lateinit var binding: ActivityDoctorNativeBinding
+    lateinit var ui: DoctorUi
     val viewModel: DoctorNativeViewModel by viewModels()
     val repo: DoctorNativeRepository get() = viewModel.repository
     val ctx get() = AppContainer.doctorNativeContext
-    private var generation = 0
     val busy: Boolean get() = viewModel.loading.value
+    /** El shell se creó (sesión de médico válida). */
+    val ready: Boolean get() = ::binding.isInitialized
     var retry: (() -> Unit)? = null
-    abstract val titleRes: Int
+    var search = ""
+    var error: String? = null
+    private var generation = 0
+    private val handler = Handler(Looper.getMainLooper())
+    private val poll = object : Runnable { override fun run() { refreshAlertsSilently(); onPoll(); handler.postDelayed(this, 30_000) } }
+
+    /** Identificador de la pantalla iOS (store.screenID). */
+    abstract val screen: String
     abstract fun render()
+    open fun onPoll() {}
+    open val loadsWorkspace = true
 
     override fun onCreate(state: Bundle?) {
         super.onCreate(state)
-        if (SessionManager.currentRole != SessionManager.Role.DOCTOR) {
-            Navigator.goToLogin(this, true)
-            return
-        }
-        window.addFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
+        if (SessionManager.currentRole != SessionManager.Role.DOCTOR) { Navigator.goToLogin(this, true); return }
+        window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        WindowCompat.setDecorFitsSystemWindows(window, false)
         binding = ActivityDoctorNativeBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { view, insets ->
-            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.ime())
-            view.setPadding(bars.left, bars.top, bars.right, bars.bottom)
+        WindowCompat.getInsetsController(window, binding.root).isAppearanceLightStatusBars = false
+        ui = DoctorUi(this)
+        ctx.bind()
+        val headerTop = binding.header.paddingTop
+        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { _, insets ->
+            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            val ime = insets.getInsets(WindowInsetsCompat.Type.ime())
+            binding.header.setPadding(binding.header.paddingLeft, headerTop + bars.top, binding.header.paddingRight, binding.header.paddingBottom)
+            binding.bottomBar.setPadding(binding.bottomBar.paddingLeft, binding.bottomBar.paddingTop, binding.bottomBar.paddingRight, ui.dp(4) + bars.bottom)
+            binding.bottomBar.visibility = if (ime.bottom > 0) View.GONE else View.VISIBLE
+            binding.root.setPadding(bars.left, 0, bars.right, if (ime.bottom > 0) ime.bottom else 0)
             insets
         }
-        binding.title.setText(titleRes)
-        ctx.bind()
-        binding.subtitle.setText(R.string.doc_subtitle)
-        binding.navHome.setOnClickListener { if (!busy) Navigator.goToDoctorHome(this,true) }
-        binding.navRequests.setOnClickListener { if (!busy) Navigator.goToDoctorAppointments(this,true) }
-        binding.navAgenda.setOnClickListener { if (!busy) Navigator.goToDoctorConsult(this,true) }
-        binding.navWalkin.setOnClickListener { if (!busy) Navigator.goToDoctorRecords(this,true) }
-        binding.navMore.setOnClickListener { if (!busy) Navigator.goToDoctorMore(this,true) }
-        val active=when(this) {
-            is DoctorNativeHomeActivity->binding.navHome
-            is DoctorNativeAgendaActivity->binding.navRequests
-            is DoctorNativeConsultActivity->binding.navAgenda
-            is DoctorNativePatientsActivity,is DoctorNativeChartActivity->binding.navWalkin
-            else->binding.navMore
-        }
-        active.setBackgroundResource(R.drawable.bg_nav_selected)
+        binding.content.dividerDrawable = android.graphics.drawable.GradientDrawable().apply { setSize(1, ui.dp(18)); setColor(Color.TRANSPARENT) }
+        binding.content.showDividers = LinearLayout.SHOW_DIVIDER_MIDDLE
+        setupHeader()
+        setupTabs()
         binding.error.setOnClickListener { if (!busy) retry?.invoke() }
-        lifecycleScope.launch {
-            repeatOnLifecycle(Lifecycle.State.STARTED) { viewModel.loading.collect { showLoading(it) } }
-        }
-        render()
+        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() { if (screen == "home") finish() else if (!busy) go("home") }
+        })
+        lifecycleScope.launch { repeatOnLifecycle(Lifecycle.State.STARTED) { viewModel.loading.collect { showLoading(it) } } }
+        if (loadsWorkspace) refreshWorkspace { render() } else render()
     }
-
     override fun onResume() {
         super.onResume()
-        if (::binding.isInitialized && SessionManager.currentRole != SessionManager.Role.DOCTOR) {
-            finish()
+        if (::binding.isInitialized && SessionManager.currentRole != SessionManager.Role.DOCTOR) { finish(); return }
+        handler.postDelayed(poll, 30_000)
+    }
+    override fun onPause() { super.onPause(); handler.removeCallbacks(poll) }
+
+    // ---------- Encabezado ----------
+    private data class Meta(val title: Int, val subtitle: Int, val search: Int)
+    private fun meta(id: String): Meta = when (id) {
+        "home" -> Meta(R.string.dx_t_home, R.string.dx_s_home, R.string.dx_q_home)
+        "agenda" -> Meta(R.string.dx_t_agenda, R.string.dx_s_default, R.string.dx_q_patient)
+        "consultation" -> Meta(R.string.dx_t_consultation, R.string.dx_s_consultation, R.string.dx_q_patient)
+        "patients" -> Meta(R.string.dx_t_patients, R.string.dx_s_patients, R.string.dx_q_patient)
+        "chart" -> Meta(R.string.dx_t_chart, R.string.dx_s_chart, R.string.dx_q_chart)
+        "laboratory" -> Meta(R.string.dx_t_laboratory, R.string.dx_s_laboratory, R.string.dx_q_laboratory)
+        "prescriptions" -> Meta(R.string.dx_t_prescriptions, R.string.dx_s_prescriptions, R.string.dx_q_prescriptions)
+        "admissions" -> Meta(R.string.dx_t_admissions, R.string.dx_s_admissions, R.string.dx_q_admissions)
+        "ambulance" -> Meta(R.string.dx_t_ambulance, R.string.dx_s_ambulance, R.string.dx_q_ambulance)
+        "turns" -> Meta(R.string.dx_t_turns, R.string.dx_s_turns, R.string.dx_q_turns)
+        "notifications" -> Meta(R.string.dx_t_notifications, R.string.dx_s_notifications, R.string.dx_q_notifications)
+        "profile" -> Meta(R.string.dx_t_profile, R.string.dx_s_profile, R.string.dx_q_profile)
+        "rooms" -> Meta(R.string.dx_t_rooms, R.string.dx_s_default, R.string.dx_q_home)
+        else -> Meta(R.string.dx_t_more, R.string.dx_s_default, R.string.dx_q_home)
+    }
+    private fun setupHeader() {
+        val m = meta(screen)
+        binding.title.setText(m.title); binding.subtitle.setText(m.subtitle)
+        val compact = screen in setOf("home", "profile")
+        binding.header.setPadding(binding.header.paddingLeft, binding.header.paddingTop, binding.header.paddingRight, ui.dp(if (compact) 24 else 48))
+        val showSearch = screen !in setOf("home", "patients", "laboratory", "admissions", "ambulance", "profile")
+        binding.searchBar.visibility = if (showSearch) View.VISIBLE else View.GONE
+        binding.searchBar.background = ui.rounded(Color.WHITE, 13)
+        binding.search.setHint(m.search)
+        binding.search.doAfterTextChanged { search = it?.toString().orEmpty(); onSearchChanged() }
+        binding.bellCount.background = ui.capsule(DoctorTheme.alpha(Color.WHITE, 0.2f))
+        binding.bell.setOnClickListener { showNotifications() }
+        updateBell()
+    }
+    open fun onSearchChanged() { rerender() }
+    fun updateBell() {
+        val unread = ctx.unread
+        binding.bellIcon.setImageResource(if (unread > 0) R.drawable.ic_d_bell_fill else R.drawable.ic_d_bell)
+        binding.bellCount.visibility = if (unread > 0) View.VISIBLE else View.GONE
+        binding.bellCount.text = unread.toString()
+        binding.bell.contentDescription = getString(R.string.dx_unread_a11y, unread)
+    }
+
+    // ---------- Barra inferior ----------
+    private fun setupTabs() {
+        val tabs = listOf(Triple(binding.navHome, "home", binding.navHomeIcon to binding.navHomeText),
+            Triple(binding.navPatients, "patients", binding.navPatientsIcon to binding.navPatientsText),
+            Triple(binding.navConsult, "consultation", binding.navConsultIcon to binding.navConsultText),
+            Triple(binding.navLabs, "laboratory", binding.navLabsIcon to binding.navLabsText),
+            Triple(binding.navMore, "more", binding.navMoreIcon to binding.navMoreText))
+        val active = when (screen) {
+            "home" -> "home"; "patients" -> "patients"; "consultation", "agenda" -> "consultation"; "laboratory" -> "laboratory"; else -> "more"
+        }
+        tabs.forEach { (view, id, parts) ->
+            val on = id == active
+            val color = if (on) DoctorTheme.wine else DoctorTheme.secondary
+            parts.first.imageTintList = ColorStateList.valueOf(color); parts.second.setTextColor(color)
+            view.background = if (on) ui.rounded(DoctorTheme.rose, 12) else null
+            view.isSelected = on
+            view.setOnClickListener { if (!busy && (id != screen || id == "more")) go(id) }
         }
     }
-    fun clear() {
+    /** go(id) de ContentView: notificaciones abre el panel de avisos; el resto reemplaza la pantalla. */
+    fun go(id: String) {
+        if (id == "notifications") { showNotifications(); return }
+        if (busy) return
+        if (id == "consultation" && screen != id && ctx.selectedAppointmentId == null) ctx.day = DoctorRules.today()
+        val target = when (id) {
+            "home" -> DoctorNativeHomeActivity::class.java; "agenda" -> DoctorNativeAgendaActivity::class.java
+            "consultation" -> DoctorNativeConsultActivity::class.java; "patients" -> DoctorNativePatientsActivity::class.java
+            "chart" -> DoctorNativeChartActivity::class.java; "laboratory" -> DoctorNativeLabsActivity::class.java
+            "prescriptions" -> DoctorNativePrescriptionsActivity::class.java; "admissions" -> DoctorNativeAdmissionsActivity::class.java
+            "ambulance" -> DoctorNativeAmbulanceActivity::class.java; "turns" -> DoctorNativeScheduleActivity::class.java
+            "profile" -> DoctorNativeProfileActivity::class.java; "rooms" -> DoctorNativeRoomsActivity::class.java
+            else -> DoctorNativeMoreActivity::class.java
+        }
+        startActivity(android.content.Intent(this, target).addFlags(android.content.Intent.FLAG_ACTIVITY_NO_ANIMATION))
+        overridePendingTransition(0, 0)
+        finish()
+    }
+
+    // ---------- Contenido ----------
+    val content: LinearLayout get() = binding.content
+    fun clear(resetScroll: Boolean = true) {
         generation++
         binding.content.removeAllViews()
-        binding.error.visibility = View.GONE
-        binding.scroll.scrollTo(0, 0)
+        if (resetScroll) binding.scroll.scrollTo(0, 0)
     }
-    fun card(title: String, detail: String = "", target: LinearLayout = binding.content): LinearLayout {
-        val c = ItemReceptionCardBinding.inflate(layoutInflater, target, false)
-        c.heading.text = title
-        c.detail.text = detail
-        c.detail.visibility = if (detail.isBlank()) View.GONE else View.VISIBLE
-        target.addView(c.root)
-        return c.body
+    /** Vuelve a dibujar sin perder la posición de desplazamiento (cambios de estado en la misma pantalla). */
+    fun rerender() {
+        val y = binding.scroll.scrollY
+        render()
+        binding.scroll.post { binding.scroll.scrollTo(0, y) }
     }
-    fun note(text: String, target: LinearLayout = binding.content) {
-        target.addView(TextView(this).apply {
-            this.text = text
-            setTextColor(getColor(R.color.text_secondary))
-            textSize = 14f
-            setPadding(0, dp(8), 0, dp(12))
-        })
-    }
-    fun action(label: Int, target: LinearLayout = binding.content, run: () -> Unit): Button {
-        val button=action(getString(label),target,run)
-        if(label in setOf(R.string.desk_create,R.string.desk_schedule,R.string.desk_availability,
-            R.string.desk_review_action,R.string.desk_link,R.string.desk_create_link,R.string.desk_assessment_send,
-            R.string.desk_assign_confirm,R.string.desk_exit,R.string.desk_start_walkin)) {
-            button.backgroundTintList=android.content.res.ColorStateList.valueOf(getColor(R.color.wine_primary))
-            button.setTextColor(getColor(R.color.white))
+    /** Cabecera común de DoctorModuleView: progreso, error con Reintentar, confirmación y aviso sin leer. */
+    fun moduleTop(target: LinearLayout = content) {
+        error?.let { message ->
+            ui.text(message, DFont.FOOTNOTE, Color.rgb(255, 59, 48), target).contentDescription = getString(R.string.dx_error_a11y, message)
+            ui.linkButton(getString(R.string.dx_retry), R.drawable.ic_d_refresh, target) { error = null; refreshWorkspace { render() } }
         }
-        return button
-    }
-    fun action(label: String, target: LinearLayout = binding.content, run: () -> Unit): Button {
-        val button = com.google.android.material.button.MaterialButton(this).apply {
-            text=label;textSize=14f;isAllCaps=false;minHeight=dp(48);minimumHeight=dp(48)
-            cornerRadius=dp(12);insetTop=0;insetBottom=0;strokeWidth=dp(1)
-            strokeColor=android.content.res.ColorStateList.valueOf(getColor(R.color.pink_caption))
-            setTextColor(getColor(R.color.wine_primary))
-            backgroundTintList=android.content.res.ColorStateList.valueOf(getColor(R.color.white))
-            setPadding(dp(14),dp(12),dp(14),dp(12))
-            layoutParams=LinearLayout.LayoutParams(-1,-2).apply {bottomMargin=dp(10)}
-            setOnClickListener {if(!busy) run()}
-        }
-        target.addView(button)
-        return button
-    }
-    fun field(label: Int, target: LinearLayout = binding.content, value: String = "", max: Int = 2000): EditText {
-        val f = ItemReceptionFieldBinding.inflate(layoutInflater, target, false)
-        f.label.setText(label)
-        f.input.contentDescription=getString(label)
-        f.input.setText(value)
-        if(label==R.string.desk_search) {f.label.visibility=View.GONE;f.input.hint=getString(label)}
-        f.input.filters = arrayOf(android.text.InputFilter.LengthFilter(max))
-        if(max>254) {
-            f.input.inputType=android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE or android.text.InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
-            f.input.minLines=3;f.input.gravity=android.view.Gravity.TOP
-        } else f.input.setSingleLine(true)
-        f.input.setSaveEnabled(false)
-        target.addView(f.root)
-        return f.input
-    }
-    fun check(label: Int = R.string.desk_identity, target: LinearLayout = binding.content): CheckBox {
-        val c = CheckBox(this).apply { setText(label); minHeight = dp(48);textSize=13f;setTextColor(getColor(R.color.text_secondary));buttonTintList=android.content.res.ColorStateList.valueOf(getColor(R.color.wine_primary)) }
-        target.addView(c)
-        return c
-    }
-    fun picker(label: Int, options: List<Pair<String, String>>, selected: String,
-               target: LinearLayout = binding.content, changed: (String) -> Unit): Button {
-        val button=action(getString(label) + getString(R.string.desk_separator) +
-            (options.firstOrNull { it.first == selected }?.second ?: getString(R.string.desk_all)),target) {}
-        (button as? com.google.android.material.button.MaterialButton)?.apply {
-            icon=androidx.appcompat.content.res.AppCompatResources.getDrawable(this@DoctorNativeActivity,android.R.drawable.arrow_down_float)
-            iconGravity=com.google.android.material.button.MaterialButton.ICON_GRAVITY_END
-            iconTint=android.content.res.ColorStateList.valueOf(getColor(R.color.wine_primary))
-        }
-        button.setOnClickListener {
-            if(!busy) MaterialAlertDialogBuilder(this).setTitle(label)
-                .setItems(options.map { it.second }.toTypedArray()) { _, i ->
-                    button.text=getString(label)+getString(R.string.desk_separator)+options[i].second
-                    changed(options[i].first)
-                }.setNegativeButton(R.string.desk_cancel, null).show()
-        }
-        return button
-    }
-    fun date(day: LocalDate, target: LinearLayout = binding.content, minToday: Boolean = false, changed: (LocalDate) -> Unit) {
-        action(getString(R.string.desk_date) + getString(R.string.desk_separator) + day, target) {
-            DatePickerDialog(this, { _, y, m, d -> changed(LocalDate.of(y,m+1,d)) },
-                day.year,day.monthValue-1,day.dayOfMonth).apply {
-                if (minToday) datePicker.minDate = ReceptionClock.today().atStartOfDay(ReceptionClock.zone).toInstant().toEpochMilli()
-            }.show()
+        ctx.confirmation?.let { ui.text(it, DFont.FOOTNOTE, DoctorTheme.wine, target) }
+        if (screen !in setOf("home", "notifications")) ctx.alerts.firstOrNull { it.txt("read_at") == null }?.let { notice ->
+            val card = ui.hospitalCard(target)
+            ui.label(notice.value("title"), R.drawable.ic_d_bell_fill, DFont.SUBHEAD_BOLD, DoctorTheme.wine, card)
+            ui.linkButton(getString(R.string.dx_view_alerts), null, card) { showNotifications() }
         }
     }
-    fun confirm(text: String = getString(R.string.desk_confirm_action), run: () -> Unit) {
-        MaterialAlertDialogBuilder(this).setMessage(text)
-            .setPositiveButton(R.string.desk_confirm) { _, _ -> if (!busy) run() }
-            .setNegativeButton(R.string.desk_cancel, null).show()
-    }
-    fun reason(label: Int, submit: (String) -> Unit) {
-        val form = LinearLayout(this).apply { orientation=LinearLayout.VERTICAL; setPadding(dp(20),dp(12),dp(20),0) }
-        val text = field(R.string.desk_reason, form)
-        val dialog = MaterialAlertDialogBuilder(this).setTitle(label).setView(form)
-            .setPositiveButton(R.string.desk_confirm, null).setNegativeButton(R.string.desk_cancel,null).create()
-        dialog.setOnShowListener {
-            dialog.getButton(-1).setOnClickListener {
-                if (text.text.toString().isBlank()) text.error=getString(R.string.desk_invalid)
-                else { val value=text.text.toString().trim(); dialog.dismiss(); confirm { submit(value) } }
-            }
-        }
-        dialog.show()
-    }
-    /** Lanza una operación en el ViewModel (corrutinas) y pinta el resultado si la vista sigue vigente. */
-    fun <T> work(operation: () -> T, success: (T) -> Unit) {
+    fun empty(text: String, target: LinearLayout = content) = ui.hospitalCard(target).also { ui.text(text, DFont.FOOTNOTE, DoctorTheme.secondary, it) }
+
+    // ---------- Operaciones ----------
+    /** Ejecuta en el ViewModel (corrutinas) y pinta el resultado si la vista sigue vigente. */
+    fun <T> work(operation: () -> T, failure: ((Throwable) -> Unit)? = null, success: (T) -> Unit) {
         val version = generation
-        binding.error.visibility=View.GONE
-        viewModel.execute(operation) { result ->
+        val started = viewModel.execute(operation) { result ->
             if (isDestroyed || isFinishing) return@execute
-            showLoading(false)
-            if (version != generation) return@execute
-            result.fold(success) { showError(it) }
+            if (version != generation && failure == null) { result.onSuccess(success); return@execute }
+            result.fold(success) { if (failure != null) failure(it) else { error = describe(it); rerender() } }
         }
+        if (!started) handler.postDelayed({ if (!isDestroyed) work(operation, failure, success) }, 250)
+    }
+    fun refreshWorkspace(done: () -> Unit) {
+        work({ repo.workspace(ctx.day) to runCatching { repo.call("alerts", args("p_offset" to 0)) as JSONObject }.getOrNull() }, { e ->
+            ctx.workspace = null; error = describe(e); done()
+        }) { (w, alerts) ->
+            ctx.workspace = w; error = null
+            alerts?.let { applyAlerts(it, false) }
+            val selected = ctx.selectedAppointmentId
+            if (selected != null && ctx.appointments.none { it.value("id") == selected }) { val p = ctx.selectedPatient; ctx.select(null); ctx.selectedPatient = p }
+            done()
+        }
+    }
+    fun describe(e: Throwable): String = when (e) {
+        is AuthException -> getString(e.messageRes)
+        is DoctorFailure -> when {
+            e.resource == R.string.doc_contract_missing -> getString(e.resource, e.detail)
+            (e.resource == R.string.doc_validation || e.resource == R.string.doc_version_conflict) && e.detail.isNotBlank() -> e.detail
+            else -> getString(e.resource)
+        }
+        else -> getString(R.string.desk_response)
     }
     private var shownLoading = false
-    /** Idempotente: solo actúa en cambios reales, así no reactiva controles que la vista deshabilitó a propósito. */
     private fun showLoading(loading: Boolean) {
         if (loading == shownLoading) return
         shownLoading = loading
-        binding.loading.visibility=if (loading) View.VISIBLE else View.GONE
-        enable(binding.content,!loading)
-        binding.navHome.isEnabled=!loading; binding.navRequests.isEnabled=!loading
-        binding.navAgenda.isEnabled=!loading; binding.navWalkin.isEnabled=!loading;binding.navMore.isEnabled=!loading
+        binding.loading.visibility = if (loading) View.VISIBLE else View.GONE
+        listOf(binding.navHome, binding.navPatients, binding.navConsult, binding.navLabs, binding.navMore).forEach { it.isEnabled = !loading }
     }
-    fun showError(error: Throwable) {
-        binding.error.text=when(error) {
-            is AuthException -> getString(error.messageRes)
-            is DoctorFailure -> when {
-                error.resource == R.string.doc_contract_missing -> getString(error.resource,error.detail)
-                error.resource == R.string.doc_validation && error.detail.isNotBlank() -> error.detail
-                else -> getString(error.resource)
+    fun applyAlerts(page: JSONObject, more: Boolean) {
+        ctx.alerts = if (more) ctx.alerts + page.list("items") else page.list("items")
+        ctx.unread = page.optInt("unread"); ctx.alertsMore = page.optBoolean("has_more"); ctx.alertsError = null
+        if (!more) { ctx.upcoming = page.list("upcoming"); DoctorReminders.scheduleAppointments(this, ctx.upcoming) }
+        updateBell()
+    }
+    private fun refreshAlertsSilently() {
+        if (busy) return
+        viewModel.execute({ repo.call("alerts", args("p_offset" to 0)) as JSONObject }) { r -> if (!isDestroyed) r.onSuccess { applyAlerts(it, false); notificationsPanel?.invoke() } }
+    }
+
+    // ---------- Diálogos ----------
+    /** `.alert` / `.confirmationDialog` de iOS. La acción destructiva se pinta en rojo. */
+    fun confirm(title: String, message: String?, actions: List<Pair<String, () -> Unit>>, cancel: String = getString(R.string.desk_cancel), destructive: Int = -1) {
+        val builder = MaterialAlertDialogBuilder(this).setTitle(title)
+        if (message != null) builder.setMessage(message)
+        val dialog = builder.create()
+        val box = ui.vbox(0).apply { setPadding(0, ui.dp(4), 0, ui.dp(8)) }
+        actions.forEachIndexed { i, (label, run) ->
+            ui.divider(box)
+            ui.text(label, DFont.BODY, if (i == destructive) Color.rgb(255, 59, 48) else DoctorTheme.wine, box, center = true).apply {
+                setPadding(ui.dp(16), ui.dp(14), ui.dp(16), ui.dp(14)); ui.clickable(this) { dialog.dismiss(); if (!busy) run() }
             }
-            else -> getString(R.string.desk_response)
-        } + getString(R.string.desk_retry_hint)
-        binding.error.visibility=View.VISIBLE
-    }
-    fun status(code: String): String = getString(when(code) {
-        "scheduled" -> R.string.desk_programmed; "confirmed" -> R.string.desk_confirmed
-        "in_progress" -> R.string.desk_in_care; "completed" -> R.string.desk_completed
-        "cancelled" -> R.string.desk_cancelled; "no_show" -> R.string.desk_no_show
-        "open" -> R.string.doc_open; "closed" -> R.string.desk_closed
-        "pendiente" -> R.string.desk_pending; "en_revision" -> R.string.desk_review
-        "agendada" -> R.string.desk_scheduled; "rechazada","rejected" -> R.string.desk_rejected
-        "cancelada" -> R.string.desk_cancelled; "programada" -> R.string.desk_programmed
-        "confirmada" -> R.string.desk_confirmed; "en_atencion" -> R.string.desk_in_care
-        "completada" -> R.string.desk_completed; "no_asistio" -> R.string.desk_no_show
-        "solicitado" -> R.string.desk_requested; "asignado" -> R.string.desk_assigned
-        "hospitalizado" -> R.string.desk_hospitalized; "alta_medica" -> R.string.desk_discharge
-        "cerrado" -> R.string.desk_closed; "cancelado" -> R.string.desk_admission_cancelled
-        "disponible" -> R.string.desk_available; "ocupada" -> R.string.desk_occupied
-        "limpieza" -> R.string.desk_cleaning; "mantenimiento" -> R.string.desk_maintenance
-        "fuera_servicio" -> R.string.desk_out; "vip" -> R.string.desk_vip; "semiprivada" -> R.string.desk_semi
-        "manana" -> R.string.desk_period_morning; "tarde" -> R.string.desk_period_afternoon; "indiferente" -> R.string.desk_period_any
-        "normal" -> R.string.desk_normal; "urgente" -> R.string.desk_urgent
-        "pending" -> R.string.desk_assessment_pending; "approved" -> R.string.desk_assessment_approved
-        "expired" -> R.string.desk_assessment_expired; else -> R.string.desk_unknown
-    })
-    fun time(value: String): String = runCatching {
-        OffsetDateTime.parse(value).atZoneSameInstant(ReceptionClock.zone)
-            .format(DateTimeFormatter.ofPattern("dd/MM/yyyy hh:mm a", java.util.Locale.US))
-            .lowercase(java.util.Locale.US)
-    }.getOrDefault(value)
-    fun required(input: EditText): String {
-        val value=input.text.toString().trim()
-        if(value.isBlank()) { input.error=getString(R.string.desk_invalid); throw DoctorFailure(R.string.desk_invalid) }
-        return value
-    }
-    private fun enable(view: View, enabled: Boolean) {
-        view.isEnabled=enabled
-        if(view is ViewGroup) for(i in 0 until view.childCount) enable(view.getChildAt(i),enabled)
-    }
-    fun filterRow(target:LinearLayout=binding.content):LinearLayout {
-        val row=LinearLayout(this).apply {orientation=LinearLayout.HORIZONTAL;isBaselineAligned=false}
-        target.addView(row)
-        return row
-    }
-    fun compact(button:Button) {
-        button.layoutParams=LinearLayout.LayoutParams(0,-2,1f).apply {setMargins(dp(3),0,dp(3),dp(8))}
-        button.textSize=12f;button.maxLines=2
-    }
-    fun chipStrip(options:List<Pair<String,String>>,selected:String,target:LinearLayout=binding.content,change:(String)->Unit) {
-        val scroll=HorizontalScrollView(this).apply {isHorizontalScrollBarEnabled=false}
-        val row=LinearLayout(this).apply {orientation=LinearLayout.HORIZONTAL}
-        scroll.addView(row)
-        target.addView(scroll)
-        options.forEach { (id,label) ->
-            row.addView(TextView(this).apply {
-                text=label;textSize=12f;gravity=android.view.Gravity.CENTER
-                minHeight=dp(40);setPadding(dp(12),dp(8),dp(12),dp(8))
-                setTextColor(getColor(if(id==selected) R.color.wine_primary else R.color.text_secondary))
-                setBackgroundResource(if(id==selected) R.drawable.bg_pill_pink else R.drawable.bg_dashboard_card)
-                layoutParams=LinearLayout.LayoutParams(-2,-2).apply {setMargins(0,0,dp(7),dp(10))}
-                isClickable=true;isFocusable=true
-                setOnClickListener {if(!busy) change(id)}
-            })
         }
+        ui.divider(box)
+        ui.text(cancel, DFont.HEADLINE, DoctorTheme.wine, box, center = true).apply {
+            setPadding(ui.dp(16), ui.dp(14), ui.dp(16), ui.dp(14)); ui.clickable(this) { dialog.dismiss() }
+        }
+        dialog.setView(box)
+        dialog.show()
     }
-    fun recordCard(name:String,badge:String,detail:String,date:String,target:LinearLayout=binding.content,open:()->Unit) {
-        val row=ItemReceptionRecordBinding.inflate(layoutInflater,target,false)
-        row.name.text=name;row.badge.text=badge;row.detail.text=detail;row.date.text=date
-        row.root.setOnClickListener {if(!busy) open()}
-        target.addView(row.root)
+    /** Hoja modal a pantalla completa con barra de navegación (NavigationStack dentro de `.sheet`). */
+    fun sheet(title: String, leading: String?, trailing: String?, onTrailing: (() -> Unit)? = null, build: (LinearLayout, Dialog) -> Unit): Dialog {
+        val dialog = Dialog(this, android.R.style.Theme_Material_Light_NoActionBar)
+        dialog.window?.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        val root = ui.vbox(0).apply { setBackgroundColor(DoctorTheme.background); layoutParams = ViewGroup.LayoutParams(-1, -1) }
+        val bar = FrameLayout(this).apply { setBackgroundColor(DoctorTheme.background); setPadding(ui.dp(16), ui.dp(14), ui.dp(16), ui.dp(14)) }
+        root.addView(bar, LinearLayout.LayoutParams(-1, -2))
+        bar.addView(TextView(this).apply {
+            text = title; textSize = 17f; typeface = ui.face(1); setTextColor(DoctorTheme.ink); gravity = Gravity.CENTER
+        }, FrameLayout.LayoutParams(-1, -2, Gravity.CENTER))
+        if (leading != null) bar.addView(ui.linkButton(leading, null, null) { dialog.dismiss() }, FrameLayout.LayoutParams(-2, -2, Gravity.START or Gravity.CENTER_VERTICAL))
+        if (trailing != null) bar.addView(ui.linkButton(trailing, null, null, DFont.HEADLINE) { onTrailing?.invoke() ?: dialog.dismiss() },
+            FrameLayout.LayoutParams(-2, -2, Gravity.END or Gravity.CENTER_VERTICAL))
+        ui.divider(root)
+        val scroll = ScrollView(this).apply { isFillViewport = true }
+        root.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
+        val body = ui.vbox(16).apply { setPadding(ui.dp(18), ui.dp(18), ui.dp(18), ui.dp(30)) }
+        scroll.addView(body)
+        dialog.setContentView(root)
+        ViewCompat.setOnApplyWindowInsetsListener(root) { v, insets ->
+            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.ime())
+            v.setPadding(bars.left, bars.top, bars.right, bars.bottom); insets
+        }
+        build(body, dialog)
+        dialog.show()
+        return dialog
     }
-    fun appointmentCard(a:org.json.JSONObject,target:LinearLayout) {
-        fun hour(v:String)=runCatching {
-            OffsetDateTime.parse(v).atZoneSameInstant(ReceptionClock.zone)
-                .format(DateTimeFormatter.ofPattern("hh:mm a", java.util.Locale.US))
-                .lowercase(java.util.Locale.US)
-        }.getOrDefault(v)
-        val row=ItemReceptionAppointmentBinding.inflate(layoutInflater,target,false)
-        row.start.text=hour(a.value("starts_at"));row.end.text=hour(a.value("ends_at"))
-        row.patient.text=a.value("patient_name");row.doctor.text=a.value("doctor_name")
-        row.room.text=getString(R.string.desk_consulting_room,a.value("room_code"))
-        row.badge.text=status(a.value("status"))
-        target.addView(row.root)
-    }
-    fun tileGrid(items: List<Triple<Int,Int,Pair<Int,()->Unit>>>) {
-        items.chunked(2).forEach { pair ->
-            val row=LinearLayout(this).apply {orientation=LinearLayout.HORIZONTAL}
-            binding.content.addView(row)
-            pair.forEach { (title,icon,detail) ->
-                val tile=ItemReceptionTileBinding.inflate(layoutInflater,row,false)
-                tile.icon.setImageResource(icon);tile.title.setText(title);tile.caption.setText(detail.first)
-                tile.root.layoutParams=LinearLayout.LayoutParams(0,-2,1f).apply {setMargins(dp(4),0,dp(4),dp(12))}
-                tile.root.setOnClickListener {if(!busy) detail.second()}
-                row.addView(tile.root)
+
+    // ---------- Notificaciones (popover de la campana) ----------
+    private var notificationsPanel: (() -> Unit)? = null
+    fun showNotifications() {
+        val dialog = Dialog(this)
+        dialog.window?.setBackgroundDrawable(ui.rounded(Color.WHITE, 14))
+        dialog.window?.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        val root = ui.vbox(14).apply { setPadding(ui.dp(18), ui.dp(18), ui.dp(18), ui.dp(18)) }
+        var reading: String? = null
+        fun paint() {
+            root.removeAllViews()
+            val head = ui.hbox(8, root)
+            val titles = ui.vbox(4, head).apply { layoutParams = LinearLayout.LayoutParams(0, -2, 1f) }
+            ui.text(getString(R.string.dx_t_notifications), DFont.TITLE3, DoctorTheme.ink, titles)
+            ui.text(getString(R.string.dx_unread, ctx.unread), DFont.CAPTION, DoctorTheme.secondary, titles)
+            ui.icon(R.drawable.ic_d_clear, DoctorTheme.wine, 26, head).apply {
+                contentDescription = getString(R.string.dx_close_alerts); isClickable = true; setOnClickListener { dialog.dismiss() }
             }
-            if(pair.size==1) row.addView(View(this),LinearLayout.LayoutParams(0,1,1f))
-        }
-    }
-    fun metricGrid(states: List<String>): Map<String,TextView> {
-        val fields=linkedMapOf<String,TextView>()
-        states.chunked(2).forEach { pair ->
-            val row=LinearLayout(this).apply {orientation=LinearLayout.HORIZONTAL}
-            binding.content.addView(row)
-            pair.forEach { state ->
-                val metric=ItemReceptionMetricBinding.inflate(layoutInflater,row,false)
-                metric.label.text=status(state)
-                metric.root.layoutParams=LinearLayout.LayoutParams(0,-2,1f).apply {setMargins(dp(4),0,dp(4),dp(12))}
-                fields[state]=metric.amount
-                row.addView(metric.root)
+            ui.divider(root)
+            ctx.alertsError?.let { ui.text(it, DFont.FOOTNOTE, Color.rgb(255, 59, 48), root) }
+            val scroll = ScrollView(this)
+            root.addView(scroll, LinearLayout.LayoutParams(-1, ui.dp(300)))
+            val list = ui.vbox(12).also { scroll.addView(it) }
+            if (ctx.alerts.isEmpty()) ui.label(getString(R.string.dx_alerts_clear), R.drawable.ic_d_check_circle, DFont.SUBHEAD, DoctorTheme.ink, list).setPadding(0, ui.dp(24), 0, ui.dp(24))
+            ctx.alerts.forEach { item ->
+                val unread = item.txt("read_at") == null
+                val card = ui.vbox(8, list).apply { background = ui.rounded(if (unread) DoctorTheme.rose else DoctorTheme.background, 14); setPadding(ui.dp(14), ui.dp(14), ui.dp(14), ui.dp(14)) }
+                ui.label(item.value("title"), if (unread) R.drawable.ic_d_dot else R.drawable.ic_d_check_circle, DFont.SUBHEAD_BOLD, DoctorTheme.wine, card)
+                ui.text(item.value("body"), DFont.FOOTNOTE, DoctorTheme.ink, card)
+                ui.text(DoctorFormat.display(item.value("created_at"), getString(R.string.dx_unavailable)), DFont.CAPTION2, DoctorTheme.secondary, card)
+                if (unread) ui.linkButton(getString(if (reading == item.value("id")) R.string.dx_saving_short else R.string.dx_mark_read), null, card, DFont.CAPTION_BOLD, enabled = reading == null) {
+                    reading = item.value("id"); paint()
+                    markRead(item) { reading = null; paint() }
+                } else ui.text(getString(R.string.dx_read), DFont.CAPTION, DoctorTheme.secondary, card)
             }
-            if(pair.size==1) row.addView(View(this),LinearLayout.LayoutParams(0,1,1f))
+            if (ctx.alertsMore) ui.linkButton(getString(R.string.dx_more_alerts), null, list) {
+                work({ repo.call("alerts", args("p_offset" to ctx.alerts.size)) as JSONObject }, { ctx.alertsError = getString(R.string.dx_alerts_failed); paint() }) { applyAlerts(it, true); paint() }
+            }
+            val actions = ui.hbox(8, root)
+            ui.linkButton(getString(R.string.dx_refresh_alerts), R.drawable.ic_d_refresh, actions, DFont.CAPTION_BOLD) { reloadAlerts { paint() } }
+            ui.spacerView(actions)
+            ui.linkButton(getString(R.string.dx_reminders), null, actions, DFont.CAPTION_BOLD) { enableReminders { paint() } }
+            ctx.notificationMessage?.let { ui.text(it, DFont.CAPTION, DoctorTheme.secondary, root) }
         }
-        return fields
+        notificationsPanel = { if (dialog.isShowing) paint() }
+        paint()
+        dialog.setContentView(root)
+        dialog.setOnDismissListener { notificationsPanel = null }
+        dialog.show()
+        dialog.window?.setLayout(ui.dp(330), ViewGroup.LayoutParams.WRAP_CONTENT)
+        reloadAlerts { paint() }
     }
-    fun section(label:Int) {
-        binding.content.addView(TextView(this).apply {
-            setText(label);textSize=17f;setTypeface(typeface,android.graphics.Typeface.BOLD)
-            setTextColor(getColor(R.color.text_primary));setPadding(dp(4),dp(14),0,dp(14))
-        })
+    fun reloadAlerts(done: () -> Unit) {
+        work({ repo.call("alerts", args("p_offset" to 0)) as JSONObject }, { ctx.alertsError = getString(R.string.dx_alerts_failed); done() }) { applyAlerts(it, false); done() }
     }
-    fun selectedPatient(): String? = ctx.patient?.value("id")?.ifBlank { null }
-    fun choosePatient(p:org.json.JSONObject, open:()->Unit) {
-        if(ctx.pending!=null || ctx.prescriptionLines.length()>0) { showError(DoctorFailure(R.string.doc_pending));return }
-        val select={ctx.selectPatient(p);open()}
-        if(ctx.dirty()) confirm(getString(R.string.doc_discard),select) else select()
-    }
-    fun send(operation:String, values:org.json.JSONObject, done:(Any)->Unit) {
-        val existing=ctx.pending
-        if(existing!=null && existing.operation!=operation) {showError(DoctorFailure(R.string.doc_pending));return}
-        val pending=existing?:DoctorPending(operation,org.json.JSONObject(values.toString()),java.util.UUID.randomUUID().toString())
-        if(operation!="finish") pending.values.put("p_key",pending.key)
-        ctx.pending=pending
-        retry={send(operation,pending.values,done)}
-        val user=SessionManager.currentUser
+    fun markRead(item: JSONObject, done: () -> Unit) {
+        val user = SessionManager.userId ?: return
         work({
-            try {
-                repo.call(operation,pending.values).also {if(SessionManager.currentUser===user) ctx.accepted(pending,it)}
-            } catch(e:DoctorFailure) {
-                if(SessionManager.currentUser===user && e.resource!=R.string.remote_operation_error) ctx.pending=null
-                throw e
-            }
-        }) { done(it) }
+            repo.rest("notifications?id=eq.${enc(item.value("id"))}&recipient_id=eq.${enc(user)}", "PATCH", JSONObject().put("read_at", java.time.Instant.now().toString()))
+            repo.call("alerts", args("p_offset" to 0)) as JSONObject
+        }, { ctx.alertsError = getString(R.string.dx_mark_failed); done() }) { applyAlerts(it, false); done() }
     }
-    fun pendingAction(done:(Any)->Unit):Boolean {
-        val pending=ctx.pending?:return false
-        note(getString(R.string.doc_pending))
-        action(R.string.doc_retry) {send(pending.operation,pending.values,done)}
-        return true
+    fun enableReminders(done: () -> Unit) {
+        val allowed = DoctorReminders.requestPermission(this)
+        ctx.notificationMessage = getString(if (allowed) R.string.dx_reminders_on else R.string.dx_reminders_settings)
+        if (allowed) DoctorReminders.scheduleAppointments(this, ctx.upcoming)
+        reloadAlerts(done)
     }
-    fun dp(v: Int) = (v*resources.displayMetrics.density).toInt()
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == DoctorReminders.REQUEST && grantResults.firstOrNull() == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            ctx.notificationMessage = getString(R.string.dx_reminders_on); DoctorReminders.scheduleAppointments(this, ctx.upcoming); notificationsPanel?.invoke()
+        }
+    }
+    fun s(id: Int, vararg values: Any): String = getString(id, *values)
 }

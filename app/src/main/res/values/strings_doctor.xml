@@ -119,4 +119,9 @@
     <string name="doc_view_chart">Ver expediente</string>
     <string name="doc_view_results">Ver resultados del paciente</string>
     <string name="doc_admission_history">Historial del ingreso</string>
+    <string name="doc_brand">Hospital Universitario</string>
+    <string name="doc_tab_patients">Pacientes</string>
+    <string name="doc_tab_consult">Consultas</string>
+    <string name="doc_tab_labs">Laboratorios</string>
+    <string name="doc_tab_more">Más</string>
 </resources>

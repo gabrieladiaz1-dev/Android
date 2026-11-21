@@ -148,9 +148,7 @@ object Navigator {
         navigate(activity, DoctorNativePrescriptionsActivity::class.java, closeCurrent)
 
     fun goToDoctorChart(activity: Activity) = navigate(activity, DoctorNativeChartActivity::class.java, false)
-    fun goToDoctorTicket(activity: Activity) = navigate(activity, DoctorNativeTicketActivity::class.java, false)
     fun goToDoctorAdmissions(activity: Activity) = navigate(activity, DoctorNativeAdmissionsActivity::class.java, false)
-    fun goToDoctorPatientLabs(activity: Activity) = navigate(activity, DoctorNativePatientLabsActivity::class.java, false)
 
     fun goToDoctorSchedule(activity: Activity, closeCurrent: Boolean = false) =
         navigate(activity, DoctorNativeAgendaActivity::class.java, closeCurrent)
@@ -273,6 +271,16 @@ object Navigator {
      * Pide confirmación, limpia [SessionManager] y vuelve al login borrando toda
      * la pila de pantallas.
      */
+    /** Cierre de sesión inmediato del módulo Doctor (paridad con «Cerrar sesión» de iOS). */
+    fun logoutNow(activity: Activity) {
+        AppContainer.doctorNativeContext.clear()
+        SessionManager.logout()
+        activity.startActivity(Intent(activity, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        })
+        activity.finish()
+    }
+
     fun logout(activity: Activity) {
         MaterialAlertDialogBuilder(activity)
             .setTitle(R.string.dialog_logout_title)

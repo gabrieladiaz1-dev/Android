@@ -36,6 +36,8 @@ object SessionManager {
 
     val currentRole: Role? get() = currentUser?.role
     val currentUserName: String? get() = currentUser?.displayName
+    /** auth.uid() de la sesión abierta (destinatario de los avisos propios). */
+    val userId: String? get() = session?.userId
 
     @Synchronized
     fun start(authSession: AuthSession, role: Role) {
